@@ -61,6 +61,7 @@ pub struct ComposeList {
     pub start_queued: Vec<usize>,
     pub stop_queued: Vec<usize>,
     pub modifiers: DockerModifier,
+    pub log_area_content: Option<String>,
 }
 
 impl App {
@@ -80,6 +81,7 @@ impl App {
                 start_queued: vec![],
                 stop_queued: vec![],
                 modifiers: DockerModifier::empty(),
+                log_area_content: None,
             },
             running: true,
             running_container_names,
@@ -96,7 +98,16 @@ impl App {
         self.running = false;
     }
 
+    pub fn set_error_log(&mut self, error: String) {
+        self.compose_content.log_area_content = Some(error);
+    }
+
+    pub fn clear_latest_error_log(&mut self) {
+        self.compose_content.log_area_content = None;
+    }
+
     pub fn toggle_modifier(&mut self, modifier: char) {
+        // SAFETY: The caller only passes numeric chars.
         let code = 1 << (modifier as u8);
         self.compose_content
             .modifiers

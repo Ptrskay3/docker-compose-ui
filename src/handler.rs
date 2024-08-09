@@ -4,6 +4,7 @@ use tokio::sync::mpsc::Sender;
 
 pub enum DockerEvent {
     Refresh,
+    ErrorLog(String),
 }
 
 pub enum QueueType {
@@ -38,24 +39,39 @@ pub async fn handle_key_events(
         }
 
         KeyCode::Enter => {
-            if let Some(mut child) = app.dc(true) {
+            app.clear_latest_error_log();
+
+            if let Some(child) = app.dc(true) {
                 app.queue(QueueType::Start);
                 tokio::spawn(async move {
-                    let status = child.wait().await.unwrap();
-                    if status.success() {
+                    let op = child.wait_with_output().await.unwrap();
+                    if op.status.success() {
                         tx.send(DockerEvent::Refresh).await.unwrap()
                     } else {
+                        tx.send(DockerEvent::ErrorLog(
+                            String::from_utf8_lossy(&op.stderr).into(),
+                        ))
+                        .await
+                        .unwrap()
                     }
                 });
             }
         }
         KeyCode::Char('s') => {
-            if let Some(mut child) = app.dc(false) {
+            app.clear_latest_error_log();
+
+            if let Some(child) = app.dc(false) {
                 app.queue(QueueType::Stop);
                 tokio::spawn(async move {
-                    let status = child.wait().await.unwrap();
-                    if status.success() {
+                    let op = child.wait_with_output().await.unwrap();
+                    if op.status.success() {
                         tx.send(DockerEvent::Refresh).await.unwrap()
+                    } else {
+                        tx.send(DockerEvent::ErrorLog(
+                            String::from_utf8_lossy(&op.stderr).into(),
+                        ))
+                        .await
+                        .unwrap()
                     }
                 });
             }
@@ -66,32 +82,53 @@ pub async fn handle_key_events(
         }
 
         KeyCode::Char('a') => {
-            let mut child = app.all();
+            app.clear_latest_error_log();
+            let child = app.all();
             app.queue_all(QueueType::Start);
             tokio::spawn(async move {
-                let status = child.wait().await.unwrap();
-                if status.success() {
+                let op = child.wait_with_output().await.unwrap();
+                if op.status.success() {
                     tx.send(DockerEvent::Refresh).await.unwrap()
+                } else {
+                    tx.send(DockerEvent::ErrorLog(
+                        String::from_utf8_lossy(&op.stderr).into(),
+                    ))
+                    .await
+                    .unwrap()
                 }
             });
         }
         KeyCode::Char('x') => {
-            let mut child = app.down_all();
+            app.clear_latest_error_log();
+            let child = app.down_all();
             app.queue_all(QueueType::Stop);
             tokio::spawn(async move {
-                let status = child.wait().await.unwrap();
-                if status.success() {
+                let op = child.wait_with_output().await.unwrap();
+                if op.status.success() {
                     tx.send(DockerEvent::Refresh).await.unwrap()
+                } else {
+                    tx.send(DockerEvent::ErrorLog(
+                        String::from_utf8_lossy(&op.stderr).into(),
+                    ))
+                    .await
+                    .unwrap()
                 }
             });
         }
         KeyCode::Char('r') => {
-            if let Some(mut child) = app.restart() {
+            app.clear_latest_error_log();
+            if let Some(child) = app.restart() {
                 app.queue(QueueType::Start);
                 tokio::spawn(async move {
-                    let status = child.wait().await.unwrap();
-                    if status.success() {
+                    let op = child.wait_with_output().await.unwrap();
+                    if op.status.success() {
                         tx.send(DockerEvent::Refresh).await.unwrap()
+                    } else {
+                        tx.send(DockerEvent::ErrorLog(
+                            String::from_utf8_lossy(&op.stderr).into(),
+                        ))
+                        .await
+                        .unwrap()
                     }
                 });
             }

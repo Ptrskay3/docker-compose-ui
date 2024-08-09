@@ -11,12 +11,12 @@ use crate::app::{App, DockerModifier};
 fn create_legend<'a>() -> Paragraph<'a> {
     let text = Line::default().spans(vec![
         Span::styled(
-            "(a)",
+            "(x)",
             Style::default()
                 .add_modifier(Modifier::BOLD)
                 .fg(Color::Cyan),
         ),
-        Span::raw(" start all containers, "),
+        Span::raw(" stop all containers, "),
         Span::styled(
             "(Enter)",
             Style::default()
@@ -25,19 +25,26 @@ fn create_legend<'a>() -> Paragraph<'a> {
         ),
         Span::raw(" start selected, "),
         Span::styled(
+            "(a)",
+            Style::default()
+                .add_modifier(Modifier::BOLD)
+                .fg(Color::Cyan),
+        ),
+        Span::raw(" start all containers, "),
+        Span::styled(
             "(s)",
             Style::default()
                 .add_modifier(Modifier::BOLD)
                 .fg(Color::Cyan),
         ),
-        Span::raw(" stop selected, "),
+        Span::raw(" restart container, "),
         Span::styled(
-            "(x)",
+            "(r)",
             Style::default()
                 .add_modifier(Modifier::BOLD)
                 .fg(Color::Cyan),
         ),
-        Span::raw(" stop all containers, "),
+        Span::raw(" stop selected, "),
         Span::styled(
             "(q)",
             Style::default()
@@ -153,11 +160,20 @@ pub fn render(app: &mut App, frame: &mut Frame) {
         .direction(Direction::Horizontal)
         .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
         .split(main_and_modifier[0]);
+
     frame.render_widget(
-        Block::bordered()
-            .title("Log area")
-            .border_type(BorderType::Rounded)
-            .style(Style::default().fg(Color::LightBlue).bg(Color::Black)),
+        Paragraph::new(
+            app.compose_content
+                .log_area_content
+                .as_deref()
+                .unwrap_or_default(),
+        )
+        .block(
+            Block::bordered()
+                .title("Log area")
+                .border_type(BorderType::Rounded)
+                .style(Style::default().fg(Color::LightBlue).bg(Color::Black)),
+        ),
         main_and_logs[1],
     );
 

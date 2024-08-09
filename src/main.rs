@@ -70,6 +70,7 @@ async fn main() -> AppResult<()> {
         if let Ok(docker_event) = rx.try_recv() {
             match docker_event {
                 DockerEvent::Refresh => app.refresh().await?,
+                DockerEvent::ErrorLog(log) => app.set_error_log(log),
             }
         }
     }

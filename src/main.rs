@@ -2,7 +2,7 @@ use bollard::container::ListContainersOptions;
 use bollard::Docker;
 use dcr::app::{App, AppResult};
 use dcr::event::{Event, EventHandler};
-use dcr::handler::handle_key_events;
+use dcr::handler::{handle_key_events, DockerEvent};
 use dcr::tui::Tui;
 use docker_compose_types::Compose;
 use ratatui::backend::CrosstermBackend;
@@ -57,6 +57,7 @@ async fn main() -> AppResult<()> {
     // Start the main loop.
     while app.running {
         // Render the user interface.
+
         tui.draw(&mut app)?;
 
         // Handle events.
@@ -66,8 +67,10 @@ async fn main() -> AppResult<()> {
             Event::Mouse(_) => {}
             Event::Resize(_, _) => {}
         }
-        if let Ok(_) = rx.try_recv() {
-            app.refresh().await?;
+        if let Ok(docker_event) = rx.try_recv() {
+            match docker_event {
+                DockerEvent::Refresh => app.refresh().await?,
+            }
         }
     }
 

@@ -1,7 +1,6 @@
 [package]
 name = "dcr"
 version = "0.1.0"
-url = "https://github.com/Ptrskay3/docker-compose-ui"
 repository = "https://github.com/Ptrskay3/docker-compose-ui"
 authors = ["peter leeh <leeh123peter@gmail.com>"]
 license = "MIT"
@@ -16,6 +15,7 @@ serde = "1.0.205"
 serde_yaml = "0.9.33"
 tokio = { version = "1.35.1", features = ["full"] }
 bollard = "*"
+bitflags = "2.6.0"
 
 # The profile that 'cargo dist' will build with
 [profile.dist]

@@ -5,6 +5,19 @@ use docker_compose_types::Compose;
 use ratatui::widgets::ListState;
 use tokio::process::{Child, Command};
 
+use crate::handler::QueueType;
+
+bitflags::bitflags! {
+    #[derive(Copy, Clone, PartialEq, Eq, Debug)]
+    pub struct DockerModifier: u8 {
+        const BUILD = 1 << 0;
+        const FORCE_RECREATE = 1 << 1;
+        const NO_DEPS = 1 << 2;
+        const PULL_ALWAYS = 1 << 3;
+        const ABORT_ON_CONTAINER_FAILURE = 1 << 4;
+    }
+}
+
 /// Application result type.
 pub type AppResult<T> = std::result::Result<T, Box<dyn error::Error>>;
 
@@ -23,7 +36,9 @@ pub struct App {
 pub struct ComposeList {
     pub compose: Compose,
     pub state: ListState,
-    pub queued: Vec<usize>,
+    pub start_queued: Vec<usize>,
+    pub stop_queued: Vec<usize>,
+    pub modifiers: DockerModifier,
 }
 
 impl App {
@@ -40,7 +55,9 @@ impl App {
             compose_content: ComposeList {
                 compose,
                 state,
-                queued: vec![],
+                start_queued: vec![],
+                stop_queued: vec![],
+                modifiers: DockerModifier::empty(),
             },
             running: true,
             running_container_names,
@@ -65,16 +82,45 @@ impl App {
         self.compose_content.state.select_next();
     }
 
-    pub fn queue(&mut self) {
+    pub fn down_all(&mut self) -> Child {
+        let child = Command::new("docker")
+            .args(["compose", "-f", &self.target, "down"])
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .stdin(Stdio::null())
+            .spawn()
+            .unwrap();
+
+        child
+    }
+
+    pub fn queue(&mut self, queue_type: QueueType) {
         if let Some(selected) = self.compose_content.state.selected() {
-            self.compose_content.queued.push(selected);
-            self.compose_content.queued.dedup();
+            match queue_type {
+                QueueType::Stop => {
+                    self.compose_content.stop_queued.push(selected);
+                    self.compose_content.stop_queued.dedup();
+                }
+                QueueType::Start => {
+                    self.compose_content.start_queued.push(selected);
+                    self.compose_content.start_queued.dedup();
+                }
+            }
         }
     }
-    pub fn queue_all(&mut self) {
-        self.compose_content.queued.clear();
-        let all = self.compose_content.compose.services.0.keys().count();
-        self.compose_content.queued.extend(0..all);
+    pub fn queue_all(&mut self, queue_type: QueueType) {
+        match queue_type {
+            QueueType::Start => {
+                self.compose_content.start_queued.clear();
+                let all = self.compose_content.compose.services.0.keys().count();
+                self.compose_content.start_queued.extend(0..all);
+            }
+            QueueType::Stop => {
+                self.compose_content.stop_queued.clear();
+                let all = self.compose_content.compose.services.0.keys().count();
+                self.compose_content.stop_queued.extend(0..all);
+            }
+        }
     }
 
     pub fn dc(&mut self, up: bool) -> Option<Child> {
@@ -114,6 +160,22 @@ impl App {
 
         child
     }
+    pub fn restart(&mut self) -> Option<Child> {
+        if let Some(selected) = self.compose_content.state.selected() {
+            let key = &self.compose_content.compose.services.0.keys()[selected];
+
+            let child = Command::new("docker")
+                .args(["compose", "-f", &self.target, "restart", &key])
+                .stdout(Stdio::piped())
+                .stderr(Stdio::piped())
+                .stdin(Stdio::null())
+                .spawn()
+                .unwrap();
+
+            return Some(child);
+        }
+        None
+    }
 
     pub async fn refresh(&mut self) -> AppResult<()> {
         let mut list_container_filters = HashMap::new();
@@ -135,7 +197,9 @@ impl App {
             .flatten()
             .map(|name| name.trim_start_matches("/").into())
             .collect::<Vec<String>>();
-        self.compose_content.queued = vec![];
+        // TODO: Don't clear everything, there may be valid pending stuff in there.
+        self.compose_content.start_queued = vec![];
+        self.compose_content.stop_queued = vec![];
         Ok(())
     }
 }

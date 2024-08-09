@@ -1,7 +1,11 @@
 use std::{collections::HashMap, error, process::Stdio};
 
-use bollard::{container::ListContainersOptions, Docker};
+use bollard::{
+    container::{ListContainersOptions, LogsOptions},
+    Docker,
+};
 use docker_compose_types::Compose;
+use futures::StreamExt;
 use ratatui::widgets::ListState;
 use tokio::process::{Child, Command};
 
@@ -52,6 +56,7 @@ pub struct App {
     pub running_container_names: Vec<String>,
     pub docker: Docker,
     pub target: String,
+    pub show_popup: bool,
 }
 
 #[derive(Debug)]
@@ -62,6 +67,7 @@ pub struct ComposeList {
     pub stop_queued: Vec<usize>,
     pub modifiers: DockerModifier,
     pub log_area_content: Option<String>,
+    pub error_msg: Option<String>,
 }
 
 impl App {
@@ -82,7 +88,9 @@ impl App {
                 stop_queued: vec![],
                 modifiers: DockerModifier::empty(),
                 log_area_content: None,
+                error_msg: None,
             },
+            show_popup: false,
             running: true,
             running_container_names,
             docker,
@@ -99,11 +107,15 @@ impl App {
     }
 
     pub fn set_error_log(&mut self, error: String) {
-        self.compose_content.log_area_content = Some(error);
+        self.compose_content.error_msg = Some(error);
+    }
+
+    pub fn set_container_log(&mut self, content: String) {
+        self.compose_content.log_area_content = Some(content);
     }
 
     pub fn clear_latest_error_log(&mut self) {
-        self.compose_content.log_area_content = None;
+        self.compose_content.error_msg = None;
     }
 
     pub fn toggle_modifier(&mut self, modifier: char) {
@@ -118,8 +130,15 @@ impl App {
         self.compose_content.state.select_previous();
     }
 
+    pub fn up_first(&mut self) {
+        self.compose_content.state.select_first();
+    }
+
     pub fn down(&mut self) {
         self.compose_content.state.select_next();
+    }
+    pub fn down_last(&mut self) {
+        self.compose_content.state.select_last();
     }
 
     pub fn down_all(&mut self) -> Child {
@@ -248,5 +267,79 @@ impl App {
         self.compose_content.start_queued = vec![];
         self.compose_content.stop_queued = vec![];
         Ok(())
+    }
+
+    pub async fn stream_container_logs(&self) -> Option<String> {
+        if let Some(selected) = self.compose_content.state.selected() {
+            // TODO: Needs work: do it in the background, and a lot of unwraps.
+            // let key = &self.compose_content.compose.services.0.keys()[selected];
+            // let mut list_container_filters = HashMap::new();
+            // list_container_filters.insert("status", vec!["running"]);
+            // let containers = &self
+            //     .docker
+            //     .list_containers(Some(ListContainersOptions {
+            //         all: true,
+            //         filters: list_container_filters,
+            //         ..Default::default()
+            //     }))
+            //     .await
+            //     .unwrap();
+
+            // let c = containers
+            //     .iter()
+            //     .cloned()
+            //     .flat_map(|c| c.names)
+            //     .flatten()
+            //     .map(|name| name.trim_start_matches("/").into())
+            //     .collect::<Vec<String>>();
+
+            // TODO: Needs work: match those to their real names.. probably we should do this at the startup
+            // println!("{:?}", c);
+            // println!("{:?}", &self.compose_content.compose.services.0.keys());
+
+            let key = "docker-ratatui-redis-1";
+            let options = Some(LogsOptions::<String> {
+                stdout: true,
+                timestamps: true,
+                since: 0,
+                ..Default::default()
+            });
+
+            let mut logs = self.docker.logs(key, options);
+            let mut output = vec![];
+
+            while let Some(Ok(value)) = logs.next().await {
+                let data = value.to_string();
+                if !data.trim().is_empty() {
+                    output.push(data);
+                }
+            }
+
+            Some(output.join(""))
+        } else {
+            None
+        }
+        //     let options = Some(LogsOptions {
+        //         stdout: true,
+        //         stderr: false,
+        //         tail: String::from("all"),
+        //         ..Default::default()
+        //     });
+        //     let logs = self
+        //         .docker
+        //         .logs(&key, options.clone())
+        //         .try_collect::<Vec<_>>()
+        //         .await
+        //         .unwrap();
+        //     let logs = logs.first().unwrap();
+
+        //     if let LogOutput::StdOut { message } = logs {
+        //         return Some(String::from_utf8_lossy(message).into());
+        //     } else {
+        //         None
+        //     }
+        // } else {
+        //     None
+        // }
     }
 }

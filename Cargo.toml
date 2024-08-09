@@ -16,6 +16,7 @@ serde_yaml = "0.9.33"
 tokio = { version = "1.35.1", features = ["full"] }
 bollard = "*"
 bitflags = "2.6.0"
+derive_setters = "0.1.6"
 
 # The profile that 'cargo dist' will build with
 [profile.dist]

@@ -34,6 +34,20 @@ async fn main() -> AppResult<()> {
         .map(|name| name.trim_start_matches("/").into())
         .collect::<Vec<String>>();
 
+    // TODO: probably do this periodically.. we1ll need an Arc<Mutex<T>> around the data, but that's not that bad
+    // fn scheduler(args: &CliArgs, docker_tx: Sender<DockerMessage>) {
+    //     let update_duration = std::time::Duration::from_millis(u64::from(args.docker_interval));
+    //     let mut now = std::time::Instant::now();
+    //     tokio::spawn(async move {
+    //         loop {
+    //             let to_sleep = update_duration.saturating_sub(now.elapsed());
+    //             tokio::time::sleep(to_sleep).await;
+    //             docker_tx.send(DockerMessage::Update).await.ok();
+    //             now = std::time::Instant::now();
+    //         }
+    //     });
+    // }
+
     let file = std::env::args()
         .nth(1)
         .unwrap_or_else(|| "docker-compose.yml".to_string());
@@ -70,7 +84,13 @@ async fn main() -> AppResult<()> {
         if let Ok(docker_event) = rx.try_recv() {
             match docker_event {
                 DockerEvent::Refresh => app.refresh().await?,
-                DockerEvent::ErrorLog(log) => app.set_error_log(log),
+                DockerEvent::ErrorLog(log) => {
+                    app.set_error_log(log);
+                    app.show_popup = true;
+                }
+                DockerEvent::ContainerLog(log) => {
+                    app.set_container_log(log);
+                }
             }
         }
     }

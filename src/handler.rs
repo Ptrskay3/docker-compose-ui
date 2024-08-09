@@ -5,6 +5,7 @@ use tokio::sync::mpsc::Sender;
 pub enum DockerEvent {
     Refresh,
     ErrorLog(String),
+    ContainerLog(String),
 }
 
 pub enum QueueType {
@@ -21,7 +22,11 @@ pub async fn handle_key_events(
     match key_event.code {
         // Exit application on `ESC` or `q`
         KeyCode::Esc | KeyCode::Char('q') => {
-            app.quit();
+            if app.show_popup {
+                app.show_popup = false;
+            } else {
+                app.quit();
+            }
         }
         // Exit application on `Ctrl-C`
         KeyCode::Char('c') | KeyCode::Char('C') => {
@@ -31,14 +36,26 @@ pub async fn handle_key_events(
         }
 
         KeyCode::Up => {
+            if key_event.modifiers == KeyModifiers::SHIFT {
+                app.up_first();
+                return Ok(());
+            }
             app.up();
         }
 
         KeyCode::Down => {
+            if key_event.modifiers == KeyModifiers::SHIFT {
+                app.down_last();
+                return Ok(());
+            }
             app.down();
         }
 
         KeyCode::Enter => {
+            if app.show_popup {
+                app.show_popup = false;
+                return Ok(());
+            }
             app.clear_latest_error_log();
 
             if let Some(child) = app.dc(true) {
@@ -135,6 +152,12 @@ pub async fn handle_key_events(
         }
         KeyCode::Char(c) if ['1', '2', '3', '4', '5'].contains(&c) => {
             app.toggle_modifier(c);
+        }
+
+        KeyCode::Char('l') => {
+            if let Some(logs) = app.stream_container_logs().await {
+                tx.send(DockerEvent::ContainerLog(logs)).await.unwrap();
+            }
         }
 
         // Other handlers you could add here.

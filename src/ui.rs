@@ -1,8 +1,11 @@
 use ratatui::{
-    layout::{Constraint, Direction, Layout},
-    style::{Color, Modifier, Style},
+    buffer::Buffer,
+    layout::{Constraint, Direction, Layout, Rect},
+    style::{Color, Modifier, Style, Stylize},
     text::{Line, Span, Text},
-    widgets::{Block, BorderType, Borders, List, ListDirection, ListItem, Paragraph},
+    widgets::{
+        Block, BorderType, Borders, Clear, List, ListDirection, ListItem, Paragraph, Widget, Wrap,
+    },
     Frame,
 };
 
@@ -190,6 +193,7 @@ pub fn render(app: &mut App, frame: &mut Frame) {
                 Style::default().fg(Color::Yellow)
             } else if app.compose_content.stop_queued.contains(&i) {
                 Style::default().fg(Color::Red)
+            // TODO: update by id
             } else if app.running_container_names.iter().any(|m| m.contains(s)) {
                 Style::default().fg(Color::LightGreen)
             } else {
@@ -223,4 +227,50 @@ pub fn render(app: &mut App, frame: &mut Frame) {
 
     let legend = create_legend();
     frame.render_widget(legend, main_and_legend[1]);
+
+    if app.show_popup {
+        let area = frame.area();
+        let popup = Popup::default()
+            .content(app.compose_content.error_msg.as_deref().unwrap_or_default())
+            .style(Style::new().blue().bg(Color::Black))
+            .title("Error")
+            .title_style(Style::new().black().bold())
+            .border_style(Style::new().red());
+        let popup_area = Rect {
+            x: area.width / 4,
+            y: area.height / 3,
+            width: area.width / 2,
+            height: area.height / 3,
+        };
+        frame.render_widget(popup, popup_area);
+    }
+}
+
+use derive_setters::Setters;
+
+#[derive(Debug, Default, Setters)]
+struct Popup<'a> {
+    #[setters(into)]
+    title: Line<'a>,
+    #[setters(into)]
+    content: Text<'a>,
+    border_style: Style,
+    title_style: Style,
+    style: Style,
+}
+
+impl Widget for Popup<'_> {
+    fn render(self, area: Rect, buf: &mut Buffer) {
+        Clear.render(area, buf);
+        let block = Block::new()
+            .title(self.title)
+            .title_style(self.title_style)
+            .borders(Borders::ALL)
+            .border_style(self.border_style);
+        Paragraph::new(self.content)
+            .wrap(Wrap { trim: true })
+            .style(self.style)
+            .block(block)
+            .render(area, buf);
+    }
 }

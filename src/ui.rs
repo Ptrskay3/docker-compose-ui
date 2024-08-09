@@ -11,13 +11,6 @@ use crate::app::{App, DockerModifier};
 fn create_legend<'a>() -> Paragraph<'a> {
     let text = Line::default().spans(vec![
         Span::styled(
-            "(x)",
-            Style::default()
-                .add_modifier(Modifier::BOLD)
-                .fg(Color::Cyan),
-        ),
-        Span::raw(" stop all containers, "),
-        Span::styled(
             "(Enter)",
             Style::default()
                 .add_modifier(Modifier::BOLD)
@@ -37,14 +30,21 @@ fn create_legend<'a>() -> Paragraph<'a> {
                 .add_modifier(Modifier::BOLD)
                 .fg(Color::Cyan),
         ),
-        Span::raw(" restart container, "),
+        Span::raw(" stop selected, "),
+        Span::styled(
+            "(x)",
+            Style::default()
+                .add_modifier(Modifier::BOLD)
+                .fg(Color::Cyan),
+        ),
+        Span::raw(" stop all containers, "),
         Span::styled(
             "(r)",
             Style::default()
                 .add_modifier(Modifier::BOLD)
                 .fg(Color::Cyan),
         ),
-        Span::raw(" stop selected, "),
+        Span::raw(" restart container, "),
         Span::styled(
             "(q)",
             Style::default()
@@ -72,9 +72,9 @@ fn create_docker_modifiers(modifiers: DockerModifier) -> Paragraph<'static> {
         Span::raw("(1) Build: "),
         Span::styled(
             if modifiers.contains(DockerModifier::BUILD) {
-                "ON "
+                "ON"
             } else {
-                "OFF "
+                "OFF"
             },
             if modifiers.contains(DockerModifier::BUILD) {
                 style_on
@@ -85,9 +85,9 @@ fn create_docker_modifiers(modifiers: DockerModifier) -> Paragraph<'static> {
         Span::raw(", (2) Force recreate: "),
         Span::styled(
             if modifiers.contains(DockerModifier::FORCE_RECREATE) {
-                "ON "
+                "ON"
             } else {
-                "OFF "
+                "OFF"
             },
             if modifiers.contains(DockerModifier::FORCE_RECREATE) {
                 style_on
@@ -98,9 +98,9 @@ fn create_docker_modifiers(modifiers: DockerModifier) -> Paragraph<'static> {
         Span::raw(", (3) Pull always: "),
         Span::styled(
             if modifiers.contains(DockerModifier::PULL_ALWAYS) {
-                "ON "
+                "ON"
             } else {
-                "OFF "
+                "OFF"
             },
             if modifiers.contains(DockerModifier::PULL_ALWAYS) {
                 style_on
@@ -111,9 +111,9 @@ fn create_docker_modifiers(modifiers: DockerModifier) -> Paragraph<'static> {
         Span::raw(", (4) Abort on container failure: "),
         Span::styled(
             if modifiers.contains(DockerModifier::ABORT_ON_CONTAINER_FAILURE) {
-                "ON "
+                "ON"
             } else {
-                "OFF "
+                "OFF"
             },
             if modifiers.contains(DockerModifier::ABORT_ON_CONTAINER_FAILURE) {
                 style_on
@@ -124,9 +124,9 @@ fn create_docker_modifiers(modifiers: DockerModifier) -> Paragraph<'static> {
         Span::raw(", (5) No deps: "),
         Span::styled(
             if modifiers.contains(DockerModifier::NO_DEPS) {
-                "ON "
+                "ON"
             } else {
-                "OFF "
+                "OFF"
             },
             if modifiers.contains(DockerModifier::NO_DEPS) {
                 style_on

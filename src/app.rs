@@ -10,11 +10,33 @@ use crate::handler::QueueType;
 bitflags::bitflags! {
     #[derive(Copy, Clone, PartialEq, Eq, Debug)]
     pub struct DockerModifier: u8 {
-        const BUILD = 1 << 0;
-        const FORCE_RECREATE = 1 << 1;
-        const NO_DEPS = 1 << 2;
+        const BUILD = 1 << 1;
+        const FORCE_RECREATE = 1 << 2;
         const PULL_ALWAYS = 1 << 3;
         const ABORT_ON_CONTAINER_FAILURE = 1 << 4;
+        const NO_DEPS = 1 << 5;
+    }
+}
+
+impl DockerModifier {
+    pub fn to_args(&self) -> Vec<&str> {
+        let mut args = vec![];
+        if self.contains(DockerModifier::BUILD) {
+            args.push("--build");
+        }
+        if self.contains(DockerModifier::FORCE_RECREATE) {
+            args.push("--force-recreate");
+        }
+        if self.contains(DockerModifier::PULL_ALWAYS) {
+            args.extend(["--pull always"]);
+        }
+        if self.contains(DockerModifier::ABORT_ON_CONTAINER_FAILURE) {
+            args.push("--abort-on-container-exit");
+        }
+        if self.contains(DockerModifier::NO_DEPS) {
+            args.push("--no-deps");
+        }
+        args
     }
 }
 
@@ -74,6 +96,13 @@ impl App {
         self.running = false;
     }
 
+    pub fn toggle_modifier(&mut self, modifier: char) {
+        let code = 1 << (modifier as u8);
+        self.compose_content
+            .modifiers
+            .toggle(DockerModifier::from_bits_truncate(code));
+    }
+
     pub fn up(&mut self) {
         self.compose_content.state.select_previous();
     }
@@ -127,12 +156,15 @@ impl App {
         if let Some(selected) = self.compose_content.state.selected() {
             let key = &self.compose_content.compose.services.0.keys()[selected];
 
+            let args = &self.compose_content.modifiers.to_args();
+
             let child = if up {
                 Command::new("docker")
                     .args(["compose", "-f", &self.target, "up", &key, "-d"])
                     .stdout(Stdio::piped())
                     .stderr(Stdio::piped())
                     .stdin(Stdio::null())
+                    .args(args)
                     .spawn()
                     .unwrap()
             } else {
@@ -141,6 +173,7 @@ impl App {
                     .stdout(Stdio::piped())
                     .stderr(Stdio::piped())
                     .stdin(Stdio::null())
+                    .args(args)
                     .spawn()
                     .unwrap()
             };
@@ -150,11 +183,14 @@ impl App {
     }
 
     pub fn all(&mut self) -> Child {
+        let args = &self.compose_content.modifiers.to_args();
+
         let child = Command::new("docker")
             .args(["compose", "-f", &self.target, "up", "-d"])
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .stdin(Stdio::null())
+            .args(args)
             .spawn()
             .unwrap();
 

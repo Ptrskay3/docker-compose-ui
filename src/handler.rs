@@ -96,6 +96,9 @@ pub async fn handle_key_events(
                 });
             }
         }
+        KeyCode::Char(c) if ['1', '2', '3', '4', '5'].contains(&c) => {
+            app.toggle_modifier(c);
+        }
 
         // Other handlers you could add here.
         _ => {}

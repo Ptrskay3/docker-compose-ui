@@ -6,8 +6,6 @@ use ratatui::{
     Frame,
 };
 
-// const CONSTRAINT_50_50: [Constraint; 2] = [Constraint::Percentage(70), Constraint::Percentage(30)];
-
 use crate::app::{App, DockerModifier};
 
 fn create_legend<'a>() -> Paragraph<'a> {
@@ -49,7 +47,12 @@ fn create_legend<'a>() -> Paragraph<'a> {
         Span::raw(" to quit."),
     ]);
 
-    Paragraph::new(text).block(Block::default().borders(Borders::ALL).title("Keys"))
+    Paragraph::new(text).block(
+        Block::default()
+            .borders(Borders::ALL)
+            .title("Keys")
+            .style(Style::default().fg(Color::LightBlue).bg(Color::Black)),
+    )
 }
 
 fn create_docker_modifiers(modifiers: DockerModifier) -> Paragraph<'static> {
@@ -111,16 +114,53 @@ fn create_docker_modifiers(modifiers: DockerModifier) -> Paragraph<'static> {
                 style_off
             },
         ),
+        Span::raw(", (5) No deps: "),
+        Span::styled(
+            if modifiers.contains(DockerModifier::NO_DEPS) {
+                "ON "
+            } else {
+                "OFF "
+            },
+            if modifiers.contains(DockerModifier::NO_DEPS) {
+                style_on
+            } else {
+                style_off
+            },
+        ),
     ]);
 
     Paragraph::new(text).block(
         Block::default()
             .title("Docker Modifiers")
-            .borders(Borders::ALL),
+            .borders(Borders::ALL)
+            .style(Style::default().fg(Color::LightBlue).bg(Color::Black)),
     )
 }
 
 pub fn render(app: &mut App, frame: &mut Frame) {
+    let size = frame.area();
+    let main_and_legend = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Min(1), Constraint::Length(3)])
+        .split(size);
+
+    let main_and_modifier = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Min(1), Constraint::Length(3)])
+        .split(main_and_legend[0]);
+
+    let main_and_logs = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
+        .split(main_and_modifier[0]);
+    frame.render_widget(
+        Block::bordered()
+            .title("Log area")
+            .border_type(BorderType::Rounded)
+            .style(Style::default().fg(Color::LightBlue).bg(Color::Black)),
+        main_and_logs[1],
+    );
+
     let items: Vec<ListItem> = app
         .compose_content
         .compose
@@ -160,21 +200,11 @@ pub fn render(app: &mut App, frame: &mut Frame) {
                 .style(Style::default().fg(Color::LightBlue).bg(Color::Black)),
         );
 
-    frame.render_stateful_widget(list, frame.area(), &mut app.compose_content.state);
-    let size = frame.area();
-    let chunks = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([Constraint::Min(1), Constraint::Length(3)])
-        .split(size);
-
-    let chunks2 = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([Constraint::Percentage(90), Constraint::Percentage(10)])
-        .split(chunks[0]);
+    frame.render_stateful_widget(list, main_and_logs[0], &mut app.compose_content.state);
 
     let docker_modifiers = create_docker_modifiers(app.compose_content.modifiers);
-    frame.render_widget(docker_modifiers, chunks2[1]);
+    frame.render_widget(docker_modifiers, main_and_modifier[1]);
 
     let legend = create_legend();
-    frame.render_widget(legend, chunks[1]);
+    frame.render_widget(legend, main_and_legend[1]);
 }

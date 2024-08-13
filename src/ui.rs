@@ -161,7 +161,7 @@ pub fn render(app: &mut App, frame: &mut Frame) {
 
     let main_and_logs = Layout::default()
         .direction(Direction::Horizontal)
-        .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
+        .constraints([Constraint::Percentage(30), Constraint::Percentage(70)])
         .split(main_and_modifier[0]);
 
     frame.render_widget(

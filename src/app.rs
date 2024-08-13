@@ -183,33 +183,31 @@ impl App {
     }
 
     pub fn dc(&mut self, up: bool) -> Option<Child> {
-        if let Some(selected) = self.compose_content.state.selected() {
-            let key = &self.compose_content.compose.services.0.keys()[selected];
+        let selected = self.compose_content.state.selected()?;
+        let key = &self.compose_content.compose.services.0.keys()[selected];
 
-            let args = &self.compose_content.modifiers.to_args();
+        let args = &self.compose_content.modifiers.to_args();
 
-            let child = if up {
-                Command::new("docker")
-                    .args(["compose", "-f", &self.target, "up", &key, "-d"])
-                    .stdout(Stdio::piped())
-                    .stderr(Stdio::piped())
-                    .stdin(Stdio::null())
-                    .args(args)
-                    .spawn()
-                    .unwrap()
-            } else {
-                Command::new("docker")
-                    .args(["compose", "-f", &self.target, "down", &key])
-                    .stdout(Stdio::piped())
-                    .stderr(Stdio::piped())
-                    .stdin(Stdio::null())
-                    .args(args)
-                    .spawn()
-                    .unwrap()
-            };
-            return Some(child);
-        }
-        None
+        let child = if up {
+            Command::new("docker")
+                .args(["compose", "-f", &self.target, "up", &key, "-d"])
+                .stdout(Stdio::piped())
+                .stderr(Stdio::piped())
+                .stdin(Stdio::null())
+                .args(args)
+                .spawn()
+                .unwrap()
+        } else {
+            Command::new("docker")
+                .args(["compose", "-f", &self.target, "down", &key])
+                .stdout(Stdio::piped())
+                .stderr(Stdio::piped())
+                .stdin(Stdio::null())
+                .args(args)
+                .spawn()
+                .unwrap()
+        };
+        Some(child)
     }
 
     pub fn all(&mut self) -> Child {
@@ -227,20 +225,18 @@ impl App {
         child
     }
     pub fn restart(&mut self) -> Option<Child> {
-        if let Some(selected) = self.compose_content.state.selected() {
-            let key = &self.compose_content.compose.services.0.keys()[selected];
+        let selected = self.compose_content.state.selected()?;
+        let key = &self.compose_content.compose.services.0.keys()[selected];
 
-            let child = Command::new("docker")
-                .args(["compose", "-f", &self.target, "restart", &key])
-                .stdout(Stdio::piped())
-                .stderr(Stdio::piped())
-                .stdin(Stdio::null())
-                .spawn()
-                .unwrap();
+        let child = Command::new("docker")
+            .args(["compose", "-f", &self.target, "restart", &key])
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .stdin(Stdio::null())
+            .spawn()
+            .unwrap();
 
-            return Some(child);
-        }
-        None
+        return Some(child);
     }
 
     pub async fn refresh(&mut self) -> AppResult<()> {
@@ -300,7 +296,7 @@ impl App {
             let key = "docker-ratatui-redis-1";
             let options = Some(LogsOptions::<String> {
                 stdout: true,
-                timestamps: true,
+                timestamps: false,
                 since: 0,
                 ..Default::default()
             });

@@ -230,7 +230,7 @@ impl App {
 
         let child = if up {
             Command::new("docker")
-                .args(["compose", "-f", &self.target, "up", &key, "-d"])
+                .args(["compose", "-f", &self.target, "up", key, "-d"])
                 .stdout(Stdio::piped())
                 .stderr(Stdio::piped())
                 .stdin(Stdio::null())
@@ -239,7 +239,7 @@ impl App {
                 .unwrap()
         } else {
             Command::new("docker")
-                .args(["compose", "-f", &self.target, "down", &key])
+                .args(["compose", "-f", &self.target, "down", key])
                 .stdout(Stdio::piped())
                 .stderr(Stdio::piped())
                 .stdin(Stdio::null())
@@ -269,14 +269,14 @@ impl App {
         let key = &self.compose_content.compose.services.0.keys()[selected];
 
         let child = Command::new("docker")
-            .args(["compose", "-f", &self.target, "restart", &key])
+            .args(["compose", "-f", &self.target, "restart", key])
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .stdin(Stdio::null())
             .spawn()
             .unwrap();
 
-        return Some(child);
+        Some(child)
     }
 
     pub async fn refresh(&mut self) -> AppResult<()> {
@@ -340,21 +340,21 @@ impl App {
         self.compose_content
             .start_queued
             .state
-            .retain(|i| !clear_start.contains(&i));
+            .retain(|i| !clear_start.contains(i));
         self.compose_content
             .start_queued
             .names
-            .retain(|i, _| !clear_start.contains(&i));
+            .retain(|i, _| !clear_start.contains(i));
 
         // Whatever is not running, we should clear from the stop_queued.
         self.compose_content
             .stop_queued
             .state
-            .retain(|i| clear_stop.contains(&i));
+            .retain(|i| clear_stop.contains(i));
         self.compose_content
             .stop_queued
             .names
-            .retain(|i, _| clear_stop.contains(&i));
+            .retain(|i, _| clear_stop.contains(i));
 
         Ok(())
     }

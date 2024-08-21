@@ -87,6 +87,7 @@ async fn main() -> AppResult<()> {
                 DockerEvent::ErrorLog(log) => {
                     app.set_error_log(log);
                     app.show_popup = true;
+                    app.clear_starting();
                 }
                 DockerEvent::ContainerLog(log) => {
                     app.set_container_log(log);

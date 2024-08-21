@@ -430,4 +430,9 @@ impl App {
         //     None
         // }
     }
+
+    pub fn clear_starting(&mut self) {
+        self.compose_content.start_queued.state.clear();
+        self.compose_content.start_queued.names.clear();
+    }
 }

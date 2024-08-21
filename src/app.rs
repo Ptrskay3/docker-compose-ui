@@ -6,7 +6,7 @@ use bollard::{
 };
 use docker_compose_types::Compose;
 use futures::StreamExt;
-use ratatui::widgets::ListState;
+use ratatui::widgets::{ListState, ScrollbarState};
 use tokio::process::{Child, Command};
 
 use crate::handler::QueueType;
@@ -32,7 +32,7 @@ impl DockerModifier {
             args.push("--force-recreate");
         }
         if self.contains(DockerModifier::PULL_ALWAYS) {
-            args.extend(["--pull always"]);
+            args.extend(["--pull", "always"]);
         }
         if self.contains(DockerModifier::ABORT_ON_CONTAINER_FAILURE) {
             args.push("--abort-on-container-exit");
@@ -57,21 +57,28 @@ pub struct App {
     pub docker: Docker,
     pub target: String,
     pub show_popup: bool,
+    pub vertical_scroll_state: ScrollbarState,
+    pub vertical_scroll: usize,
 }
 
 #[derive(Debug)]
 pub struct ComposeList {
     pub compose: Compose,
     pub state: ListState,
-    pub start_queued: Vec<usize>,
-    pub stop_queued: Vec<usize>,
+    pub start_queued: Queued,
+    pub stop_queued: Queued,
     pub modifiers: DockerModifier,
     pub log_area_content: Option<String>,
     pub error_msg: Option<String>,
 }
 
+#[derive(Debug, Default)]
+pub struct Queued {
+    pub state: Vec<usize>,
+    pub names: HashMap<usize, String>,
+}
+
 impl App {
-    /// Constructs a new instance of [`App`].
     pub fn new(
         compose: Compose,
         running_container_names: Vec<String>,
@@ -84,8 +91,8 @@ impl App {
             compose_content: ComposeList {
                 compose,
                 state,
-                start_queued: vec![],
-                stop_queued: vec![],
+                start_queued: Default::default(),
+                stop_queued: Default::default(),
                 modifiers: DockerModifier::empty(),
                 log_area_content: None,
                 error_msg: None,
@@ -95,6 +102,8 @@ impl App {
             running_container_names,
             docker,
             target,
+            vertical_scroll_state: ScrollbarState::default(),
+            vertical_scroll: 0,
         }
     }
 
@@ -157,12 +166,24 @@ impl App {
         if let Some(selected) = self.compose_content.state.selected() {
             match queue_type {
                 QueueType::Stop => {
-                    self.compose_content.stop_queued.push(selected);
-                    self.compose_content.stop_queued.dedup();
+                    let key = &self.compose_content.compose.services.0.keys()[selected];
+                    self.compose_content
+                        .stop_queued
+                        .names
+                        .insert(selected, key.clone());
+
+                    self.compose_content.stop_queued.state.push(selected);
+                    self.compose_content.stop_queued.state.dedup();
                 }
                 QueueType::Start => {
-                    self.compose_content.start_queued.push(selected);
-                    self.compose_content.start_queued.dedup();
+                    let key = &self.compose_content.compose.services.0.keys()[selected];
+                    self.compose_content
+                        .start_queued
+                        .names
+                        .insert(selected, key.clone());
+
+                    self.compose_content.start_queued.state.push(selected);
+                    self.compose_content.start_queued.state.dedup();
                 }
             }
         }
@@ -170,14 +191,33 @@ impl App {
     pub fn queue_all(&mut self, queue_type: QueueType) {
         match queue_type {
             QueueType::Start => {
-                self.compose_content.start_queued.clear();
-                let all = self.compose_content.compose.services.0.keys().count();
-                self.compose_content.start_queued.extend(0..all);
+                self.compose_content.start_queued.names = self
+                    .compose_content
+                    .compose
+                    .services
+                    .0
+                    .iter()
+                    .enumerate()
+                    .map(|(i, (k, _))| (i, k.clone()))
+                    .collect();
+
+                self.compose_content.start_queued.state.clear();
+                let all = self.compose_content.compose.services.0.len();
+                self.compose_content.start_queued.state.extend(0..all);
             }
             QueueType::Stop => {
-                self.compose_content.stop_queued.clear();
-                let all = self.compose_content.compose.services.0.keys().count();
-                self.compose_content.stop_queued.extend(0..all);
+                self.compose_content.stop_queued.names = self
+                    .compose_content
+                    .compose
+                    .services
+                    .0
+                    .iter()
+                    .enumerate()
+                    .map(|(i, (k, _))| (i, k.clone()))
+                    .collect();
+                self.compose_content.stop_queued.state.clear();
+                let all = self.compose_content.compose.services.0.len();
+                self.compose_content.stop_queued.state.extend(0..all);
             }
         }
     }
@@ -259,14 +299,46 @@ impl App {
             .flatten()
             .map(|name| name.trim_start_matches("/").into())
             .collect::<Vec<String>>();
-        // TODO: Don't clear everything, there may be valid pending stuff in there.
-        self.compose_content.start_queued = vec![];
-        self.compose_content.stop_queued = vec![];
+
+        let indices_to_clear =
+            self.running_container_names
+                .iter()
+                .enumerate()
+                .fold(vec![], |mut acc, (i, name)| {
+                    if self
+                        .compose_content
+                        .start_queued
+                        .names
+                        .values()
+                        .any(|n| n == name)
+                    {
+                        acc.push(i);
+                    }
+                    acc
+                });
+        self.compose_content
+            .start_queued
+            .state
+            .retain(|i| indices_to_clear.contains(i));
+        self.compose_content
+            .start_queued
+            .names
+            .retain(|i, _| indices_to_clear.contains(i));
+
+        self.compose_content
+            .stop_queued
+            .names
+            .retain(|i, _| indices_to_clear.contains(i));
+        self.compose_content
+            .stop_queued
+            .state
+            .retain(|i| indices_to_clear.contains(i));
+
         Ok(())
     }
 
     pub async fn stream_container_logs(&self) -> Option<String> {
-        if let Some(selected) = self.compose_content.state.selected() {
+        if let Some(_selected) = self.compose_content.state.selected() {
             // TODO: Needs work: do it in the background, and a lot of unwraps.
             // let key = &self.compose_content.compose.services.0.keys()[selected];
             // let mut list_container_filters = HashMap::new();

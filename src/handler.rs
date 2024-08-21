@@ -160,7 +160,16 @@ pub async fn handle_key_events(
             }
         }
 
-        // Other handlers you could add here.
+        KeyCode::Char('j') | KeyCode::PageUp => {
+            app.vertical_scroll = app.vertical_scroll.saturating_add(1);
+            app.vertical_scroll_state = app.vertical_scroll_state.position(app.vertical_scroll);
+        }
+
+        KeyCode::Char('k') | KeyCode::PageDown => {
+            app.vertical_scroll = app.vertical_scroll.saturating_sub(1);
+            app.vertical_scroll_state = app.vertical_scroll_state.position(app.vertical_scroll);
+        }
+
         _ => {}
     }
     Ok(())

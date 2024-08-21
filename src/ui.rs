@@ -1,10 +1,11 @@
 use ratatui::{
     buffer::Buffer,
-    layout::{Constraint, Direction, Layout, Rect},
+    layout::{Constraint, Direction, Layout, Margin, Rect},
     style::{Color, Modifier, Style, Stylize},
     text::{Line, Span, Text},
     widgets::{
-        Block, BorderType, Borders, Clear, List, ListDirection, ListItem, Paragraph, Widget, Wrap,
+        Block, BorderType, Borders, Clear, List, ListDirection, ListItem, Paragraph, Scrollbar,
+        ScrollbarOrientation, ScrollbarState, Widget, Wrap,
     },
     Frame,
 };
@@ -189,9 +190,9 @@ pub fn render(app: &mut App, frame: &mut Frame) {
         .enumerate()
         .map(|(i, s)| {
             let content = Text::raw(s);
-            let style = if app.compose_content.start_queued.contains(&i) {
+            let style = if app.compose_content.start_queued.state.contains(&i) {
                 Style::default().fg(Color::Yellow)
-            } else if app.compose_content.stop_queued.contains(&i) {
+            } else if app.compose_content.stop_queued.state.contains(&i) {
                 Style::default().fg(Color::Red)
             // TODO: update by id
             } else if app.running_container_names.iter().any(|m| m.contains(s)) {
@@ -229,9 +230,19 @@ pub fn render(app: &mut App, frame: &mut Frame) {
     frame.render_widget(legend, main_and_legend[1]);
 
     if app.show_popup {
+        let content = app.compose_content.error_msg.as_deref().unwrap_or_default();
+        app.vertical_scroll_state = app
+            .vertical_scroll_state
+            .content_length(content.lines().count());
+
+        let mut scrollbar_state = ScrollbarState::new(content.len()).position(0);
+        let scrollbar = Scrollbar::new(ScrollbarOrientation::VerticalRight)
+            .begin_symbol(Some("↑"))
+            .end_symbol(Some("↓"));
+
         let area = frame.area();
         let popup = Popup::default()
-            .content(app.compose_content.error_msg.as_deref().unwrap_or_default())
+            .content(content)
             .style(Style::new().blue().bg(Color::Black))
             .title("Error")
             .title_style(Style::new().black().bold())
@@ -242,6 +253,24 @@ pub fn render(app: &mut App, frame: &mut Frame) {
             width: area.width / 2,
             height: area.height / 3,
         };
+        frame.render_stateful_widget(
+            Scrollbar::new(ScrollbarOrientation::VerticalRight)
+                .begin_symbol(Some("↑"))
+                .end_symbol(Some("↓")),
+            popup_area.inner(Margin {
+                vertical: 1,
+                horizontal: 0,
+            }),
+            &mut app.vertical_scroll_state,
+        );
+        frame.render_stateful_widget(
+            scrollbar,
+            popup_area.inner(Margin {
+                vertical: 1,
+                horizontal: 0,
+            }),
+            &mut scrollbar_state,
+        );
         frame.render_widget(popup, popup_area);
     }
 }
@@ -268,6 +297,7 @@ impl Widget for Popup<'_> {
             .borders(Borders::ALL)
             .border_style(self.border_style);
         Paragraph::new(self.content)
+            .scroll((0, 0))
             .wrap(Wrap { trim: true })
             .style(self.style)
             .block(block)

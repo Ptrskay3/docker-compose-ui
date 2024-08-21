@@ -194,7 +194,6 @@ pub fn render(app: &mut App, frame: &mut Frame) {
                 Style::default().fg(Color::Yellow)
             } else if app.compose_content.stop_queued.state.contains(&i) {
                 Style::default().fg(Color::Red)
-            // TODO: update by id
             } else if app.running_container_names.iter().any(|m| m.contains(s)) {
                 Style::default().fg(Color::LightGreen)
             } else {

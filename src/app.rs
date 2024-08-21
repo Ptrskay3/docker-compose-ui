@@ -300,39 +300,59 @@ impl App {
             .map(|name| name.trim_start_matches("/").into())
             .collect::<Vec<String>>();
 
-        let indices_to_clear =
+        let clear_start =
             self.running_container_names
                 .iter()
                 .enumerate()
-                .fold(vec![], |mut acc, (i, name)| {
-                    if self
+                .fold(vec![], |mut acc, (_, name)| {
+                    if let Some(index) = &self
                         .compose_content
                         .start_queued
                         .names
-                        .values()
-                        .any(|n| n == name)
+                        .iter()
+                        .find_map(|(k, n)| if n == name { Some(k.clone()) } else { None })
                     {
-                        acc.push(i);
+                        acc.push(index.clone());
                     }
                     acc
                 });
-        self.compose_content
-            .start_queued
-            .state
-            .retain(|i| indices_to_clear.contains(i));
-        self.compose_content
-            .start_queued
-            .names
-            .retain(|i, _| indices_to_clear.contains(i));
 
+        let clear_stop =
+            self.running_container_names
+                .iter()
+                .enumerate()
+                .fold(vec![], |mut acc, (_, name)| {
+                    if let Some(index) = &self
+                        .compose_content
+                        .stop_queued
+                        .names
+                        .iter()
+                        .find_map(|(k, n)| if n == name { Some(k.clone()) } else { None })
+                    {
+                        acc.push(index.clone());
+                    }
+                    acc
+                });
+
+        // Whatever is already running, we should clear from the start_queued.
         self.compose_content
-            .stop_queued
+            .start_queued
+            .state
+            .retain(|i| !clear_start.contains(&&i));
+        self.compose_content
+            .start_queued
             .names
-            .retain(|i, _| indices_to_clear.contains(i));
+            .retain(|i, _| !clear_start.contains(&&i));
+
+        // Whatever is not running, we should clear from the stop_queued.
         self.compose_content
             .stop_queued
             .state
-            .retain(|i| indices_to_clear.contains(i));
+            .retain(|i| clear_stop.contains(&&i));
+        self.compose_content
+            .stop_queued
+            .names
+            .retain(|i, _| clear_stop.contains(&&i));
 
         Ok(())
     }
@@ -362,8 +382,6 @@ impl App {
             //     .collect::<Vec<String>>();
 
             // TODO: Needs work: match those to their real names.. probably we should do this at the startup
-            // println!("{:?}", c);
-            // println!("{:?}", &self.compose_content.compose.services.0.keys());
 
             let key = "docker-ratatui-redis-1";
             let options = Some(LogsOptions::<String> {

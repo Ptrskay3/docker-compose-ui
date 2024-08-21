@@ -65,6 +65,9 @@ pub async fn handle_key_events(
                     if op.status.success() {
                         tx.send(DockerEvent::Refresh).await.unwrap()
                     } else {
+                        // TODO: This is duplicated.. move out later.
+                        tx.send(DockerEvent::Refresh).await.unwrap();
+
                         tx.send(DockerEvent::ErrorLog(
                             String::from_utf8_lossy(&op.stderr).into(),
                         ))
@@ -84,6 +87,9 @@ pub async fn handle_key_events(
                     if op.status.success() {
                         tx.send(DockerEvent::Refresh).await.unwrap()
                     } else {
+                        // TODO: move out, duplicated
+                        tx.send(DockerEvent::Refresh).await.unwrap();
+
                         tx.send(DockerEvent::ErrorLog(
                             String::from_utf8_lossy(&op.stderr).into(),
                         ))

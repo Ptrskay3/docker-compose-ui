@@ -305,14 +305,15 @@ impl App {
                 .iter()
                 .enumerate()
                 .fold(vec![], |mut acc, (_, name)| {
-                    if let Some(index) = &self
+                    if let Some(index) = self
                         .compose_content
                         .start_queued
                         .names
                         .iter()
-                        .find_map(|(k, n)| if n == name { Some(k.clone()) } else { None })
+                        .find_map(|(k, n)| if n == name { Some(k) } else { None })
+                        .cloned()
                     {
-                        acc.push(index.clone());
+                        acc.push(index);
                     }
                     acc
                 });
@@ -322,14 +323,15 @@ impl App {
                 .iter()
                 .enumerate()
                 .fold(vec![], |mut acc, (_, name)| {
-                    if let Some(index) = &self
+                    if let Some(index) = self
                         .compose_content
                         .stop_queued
                         .names
                         .iter()
-                        .find_map(|(k, n)| if n == name { Some(k.clone()) } else { None })
+                        .find_map(|(k, n)| if n == name { Some(k) } else { None })
+                        .cloned()
                     {
-                        acc.push(index.clone());
+                        acc.push(index);
                     }
                     acc
                 });
@@ -338,21 +340,21 @@ impl App {
         self.compose_content
             .start_queued
             .state
-            .retain(|i| !clear_start.contains(&&i));
+            .retain(|i| !clear_start.contains(&i));
         self.compose_content
             .start_queued
             .names
-            .retain(|i, _| !clear_start.contains(&&i));
+            .retain(|i, _| !clear_start.contains(&i));
 
         // Whatever is not running, we should clear from the stop_queued.
         self.compose_content
             .stop_queued
             .state
-            .retain(|i| clear_stop.contains(&&i));
+            .retain(|i| clear_stop.contains(&i));
         self.compose_content
             .stop_queued
             .names
-            .retain(|i, _| clear_stop.contains(&&i));
+            .retain(|i, _| clear_stop.contains(&i));
 
         Ok(())
     }

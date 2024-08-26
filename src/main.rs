@@ -57,7 +57,25 @@ async fn main() -> AppResult<()> {
         Err(e) => panic!("Failed to parse docker-compose file: {}", e),
     };
 
-    let mut app = App::new(compose_content, running_container_names, docker, file);
+    let mut app = App::new(
+        compose_content,
+        running_container_names,
+        docker.clone(),
+        file,
+    );
+    for (i, service) in app
+        .compose_content
+        .compose
+        .services
+        .clone()
+        .0
+        .keys()
+        .enumerate()
+    {
+        app.compose_content
+            .start_log_stream(i, service.clone(), docker.clone())
+            .await?;
+    }
 
     // Initialize the terminal user interface.
     let backend = CrosstermBackend::new(io::stderr());

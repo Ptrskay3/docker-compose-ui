@@ -37,18 +37,18 @@ pub async fn handle_key_events(
 
         KeyCode::Up => {
             if key_event.modifiers == KeyModifiers::SHIFT {
-                app.up_first();
+                app.up_first(tx.clone());
                 return Ok(());
             }
-            app.up();
+            app.up(tx.clone());
         }
 
         KeyCode::Down => {
             if key_event.modifiers == KeyModifiers::SHIFT {
-                app.down_last();
+                app.down_last(tx.clone());
                 return Ok(());
             }
-            app.down();
+            app.down(tx.clone());
         }
 
         KeyCode::Enter => {
@@ -62,18 +62,14 @@ pub async fn handle_key_events(
                 app.queue(QueueType::Start);
                 tokio::spawn(async move {
                     let op = child.wait_with_output().await.unwrap();
-                    if op.status.success() {
-                        tx.send(DockerEvent::Refresh).await.unwrap()
-                    } else {
-                        // TODO: This is duplicated.. move out later.
-                        tx.send(DockerEvent::Refresh).await.unwrap();
-
+                    if !op.status.success() {
                         tx.send(DockerEvent::ErrorLog(
                             String::from_utf8_lossy(&op.stderr).into(),
                         ))
                         .await
                         .unwrap()
                     }
+                    tx.send(DockerEvent::Refresh).await.unwrap()
                 });
             }
         }
@@ -84,18 +80,14 @@ pub async fn handle_key_events(
                 app.queue(QueueType::Stop);
                 tokio::spawn(async move {
                     let op = child.wait_with_output().await.unwrap();
-                    if op.status.success() {
-                        tx.send(DockerEvent::Refresh).await.unwrap()
-                    } else {
-                        // TODO: move out, duplicated
-                        tx.send(DockerEvent::Refresh).await.unwrap();
-
+                    if !op.status.success() {
                         tx.send(DockerEvent::ErrorLog(
                             String::from_utf8_lossy(&op.stderr).into(),
                         ))
                         .await
                         .unwrap()
                     }
+                    tx.send(DockerEvent::Refresh).await.unwrap()
                 });
             }
         }
@@ -110,16 +102,14 @@ pub async fn handle_key_events(
             app.queue_all(QueueType::Start);
             tokio::spawn(async move {
                 let op = child.wait_with_output().await.unwrap();
-                if op.status.success() {
-                    tx.send(DockerEvent::Refresh).await.unwrap()
-                } else {
-                    tx.send(DockerEvent::Refresh).await.unwrap();
+                if !op.status.success() {
                     tx.send(DockerEvent::ErrorLog(
                         String::from_utf8_lossy(&op.stderr).into(),
                     ))
                     .await
                     .unwrap()
                 }
+                tx.send(DockerEvent::Refresh).await.unwrap();
             });
         }
         KeyCode::Char('x') => {
@@ -128,16 +118,14 @@ pub async fn handle_key_events(
             app.queue_all(QueueType::Stop);
             tokio::spawn(async move {
                 let op = child.wait_with_output().await.unwrap();
-                if op.status.success() {
-                    tx.send(DockerEvent::Refresh).await.unwrap()
-                } else {
-                    tx.send(DockerEvent::Refresh).await.unwrap();
+                if !op.status.success() {
                     tx.send(DockerEvent::ErrorLog(
                         String::from_utf8_lossy(&op.stderr).into(),
                     ))
                     .await
                     .unwrap()
                 }
+                tx.send(DockerEvent::Refresh).await.unwrap();
             });
         }
         KeyCode::Char('r') => {
@@ -146,15 +134,14 @@ pub async fn handle_key_events(
                 app.queue(QueueType::Start);
                 tokio::spawn(async move {
                     let op = child.wait_with_output().await.unwrap();
-                    if op.status.success() {
-                        tx.send(DockerEvent::Refresh).await.unwrap()
-                    } else {
+                    if !op.status.success() {
                         tx.send(DockerEvent::ErrorLog(
                             String::from_utf8_lossy(&op.stderr).into(),
                         ))
                         .await
                         .unwrap()
                     }
+                    tx.send(DockerEvent::Refresh).await.unwrap()
                 });
             }
         }
@@ -163,18 +150,20 @@ pub async fn handle_key_events(
         }
 
         KeyCode::Char('l') => {
-            if let Some(logs) = app.stream_container_logs().await {
-                tx.send(DockerEvent::ContainerLog(logs)).await.unwrap();
-            }
+            println!("{:?}", app.vertical_scroll_state);
+            println!("{:?}", app.vertical_scroll);
+            // if let Some(logs) = app.stream_container_logs().await {
+            //     tx.send(DockerEvent::ContainerLog(logs)).await.unwrap();
+            // }
         }
 
         KeyCode::Char('j') | KeyCode::PageUp => {
-            app.vertical_scroll = app.vertical_scroll.saturating_add(1);
+            app.vertical_scroll = app.vertical_scroll.saturating_sub(1);
             app.vertical_scroll_state = app.vertical_scroll_state.position(app.vertical_scroll);
         }
 
         KeyCode::Char('k') | KeyCode::PageDown => {
-            app.vertical_scroll = app.vertical_scroll.saturating_sub(1);
+            app.vertical_scroll = app.vertical_scroll.saturating_add(1);
             app.vertical_scroll_state = app.vertical_scroll_state.position(app.vertical_scroll);
         }
 

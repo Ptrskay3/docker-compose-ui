@@ -5,7 +5,7 @@ use ratatui::{
     text::{Line, Span, Text},
     widgets::{
         Block, BorderType, Borders, Clear, List, ListDirection, ListItem, Paragraph, Scrollbar,
-        ScrollbarOrientation, ScrollbarState, Widget, Wrap,
+        ScrollbarOrientation, Widget, Wrap,
     },
     Frame,
 };
@@ -165,19 +165,27 @@ pub fn render(app: &mut App, frame: &mut Frame) {
         .constraints([Constraint::Percentage(30), Constraint::Percentage(70)])
         .split(main_and_modifier[0]);
 
+    let content = app
+        .compose_content
+        .log_area_content2
+        .lock()
+        .unwrap()
+        .get(&app.compose_content.state.selected().unwrap_or(0))
+        .cloned()
+        .unwrap_or_default();
+    app.vertical_scroll_state = app
+        .vertical_scroll_state
+        .viewport_content_length(6)
+        .content_length(content.len());
     frame.render_widget(
-        Paragraph::new(
-            app.compose_content
-                .log_area_content
-                .as_deref()
-                .unwrap_or_default(),
-        )
-        .block(
-            Block::bordered()
-                .title("Log area")
-                .border_type(BorderType::Rounded)
-                .style(Style::default().fg(Color::LightBlue).bg(Color::Black)),
-        ),
+        Paragraph::new(content.join(""))
+            .block(
+                Block::bordered()
+                    .title("Log area")
+                    .border_type(BorderType::Rounded)
+                    .style(Style::default().fg(Color::LightBlue).bg(Color::Black)),
+            )
+            .scroll((app.vertical_scroll as _, 0)),
         main_and_logs[1],
     );
 
@@ -228,48 +236,56 @@ pub fn render(app: &mut App, frame: &mut Frame) {
     let legend = create_legend();
     frame.render_widget(legend, main_and_legend[1]);
 
+    let content = app
+        .compose_content
+        .log_area_content2
+        .lock()
+        .unwrap()
+        .get(&app.compose_content.state.selected().unwrap_or(0))
+        .cloned()
+        .unwrap_or_default();
+    app.vertical_scroll_state = app
+        .vertical_scroll_state
+        .viewport_content_length(6)
+        .content_length(content.len());
+
+    let scrollbar = Scrollbar::new(ScrollbarOrientation::VerticalRight)
+        .begin_symbol(Some("↑"))
+        .end_symbol(Some("↓"));
+    frame.render_stateful_widget(
+        scrollbar,
+        main_and_logs[1].inner(Margin {
+            vertical: 1,
+            horizontal: 0,
+        }),
+        &mut app.vertical_scroll_state,
+    );
     if app.show_popup {
-        let content = app.compose_content.error_msg.as_deref().unwrap_or_default();
-        app.vertical_scroll_state = app
-            .vertical_scroll_state
-            .content_length(content.lines().count());
-
-        let mut scrollbar_state = ScrollbarState::new(content.len()).position(0);
-        let scrollbar = Scrollbar::new(ScrollbarOrientation::VerticalRight)
-            .begin_symbol(Some("↑"))
-            .end_symbol(Some("↓"));
-
+        // TODO: separate scroll here
         let area = frame.area();
         let popup = Popup::default()
-            .content(content)
+            .content(content.join(""))
             .style(Style::new().blue().bg(Color::Black))
             .title("Error")
             .title_style(Style::new().black().bold())
             .border_style(Style::new().red());
         let popup_area = Rect {
-            x: area.width / 4,
-            y: area.height / 3,
-            width: area.width / 2,
-            height: area.height / 3,
+            x: area.width / 16,
+            y: area.height / 12,
+            width: area.width / 8 * 7,
+            height: area.height / 8 * 5,
         };
         frame.render_stateful_widget(
             Scrollbar::new(ScrollbarOrientation::VerticalRight)
                 .begin_symbol(Some("↑"))
                 .end_symbol(Some("↓")),
-            popup_area.inner(Margin {
+            main_and_logs[1].inner(Margin {
                 vertical: 1,
                 horizontal: 0,
             }),
             &mut app.vertical_scroll_state,
         );
-        frame.render_stateful_widget(
-            scrollbar,
-            popup_area.inner(Margin {
-                vertical: 1,
-                horizontal: 0,
-            }),
-            &mut scrollbar_state,
-        );
+
         frame.render_widget(popup, popup_area);
     }
 }

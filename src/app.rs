@@ -1,15 +1,23 @@
-use std::{collections::HashMap, error, process::Stdio};
+use std::{
+    collections::HashMap,
+    error,
+    hash::Hash,
+    process::Stdio,
+    sync::{Arc, Mutex},
+};
 
 use bollard::{
     container::{ListContainersOptions, LogsOptions},
     Docker,
 };
 use docker_compose_types::Compose;
-use futures::StreamExt;
+use futures::{Stream, StreamExt};
+use tokio::{sync::mpsc::Sender, task::JoinHandle};
+
 use ratatui::widgets::{ListState, ScrollbarState};
 use tokio::process::{Child, Command};
 
-use crate::handler::QueueType;
+use crate::handler::{DockerEvent, QueueType};
 
 bitflags::bitflags! {
     #[derive(Copy, Clone, PartialEq, Eq, Debug)]
@@ -50,7 +58,6 @@ pub type AppResult<T> = std::result::Result<T, Box<dyn error::Error>>;
 /// Application.
 #[derive(Debug)]
 pub struct App {
-    /// Is the application running?
     pub running: bool,
     pub compose_content: ComposeList,
     pub running_container_names: Vec<String>,
@@ -61,6 +68,56 @@ pub struct App {
     pub vertical_scroll: usize,
 }
 
+#[derive(Debug, Clone)]
+pub struct StreamOptions {
+    pub tail: String,
+    pub all: bool,
+}
+
+impl Default for StreamOptions {
+    fn default() -> Self {
+        Self {
+            tail: "50".into(),
+            all: false,
+        }
+    }
+}
+
+impl From<StreamOptions> for LogsOptions<String> {
+    fn from(val: StreamOptions) -> Self {
+        let mut opts = LogsOptions::<String> {
+            follow: true,
+            stdout: true,
+            stderr: true,
+            tail: val.tail,
+            ..Default::default()
+        };
+
+        if val.all {
+            opts.tail = "all".into()
+        }
+
+        opts
+    }
+}
+
+pub fn get_log_stream(
+    id: &str,
+    docker: &bollard::Docker,
+    stream_options: StreamOptions,
+) -> impl Stream<Item = String> {
+    let logstream = docker
+        .logs(&id, Some(stream_options.into()))
+        .filter_map(|res| async move {
+            Some(match res {
+                Ok(r) => format!("{r}"),
+                Err(err) => format!("{err}"),
+            })
+        });
+
+    Box::pin(logstream)
+}
+
 #[derive(Debug)]
 pub struct ComposeList {
     pub compose: Compose,
@@ -69,7 +126,36 @@ pub struct ComposeList {
     pub stop_queued: Queued,
     pub modifiers: DockerModifier,
     pub log_area_content: Option<String>,
+    pub log_streamer_handle: Option<JoinHandle<()>>,
+    pub log_area_content2: Arc<Mutex<HashMap<usize, Vec<String>>>>,
     pub error_msg: Option<String>,
+    pub auto_scroll: bool,
+    pub stream_options: StreamOptions,
+}
+
+impl ComposeList {
+    pub async fn start_log_stream(
+        &mut self,
+        idx: usize,
+        id: String,
+        docker: bollard::Docker,
+    ) -> AppResult<()> {
+        self.auto_scroll = true;
+        let mut logs_stream = get_log_stream(&id, &docker, self.stream_options.clone());
+
+        // let tx = self.tx.clone();
+        let log_messages = self.log_area_content2.clone();
+        self.log_streamer_handle = Some(tokio::spawn(async move {
+            while let Some(v) = logs_stream.next().await {
+                {
+                    log_messages.lock().unwrap().entry(idx).or_default().push(v);
+                }
+                // let _ = tx.send(Message::Tick).await;
+            }
+        }));
+
+        Ok(())
+    }
 }
 
 #[derive(Debug, Default)]
@@ -95,7 +181,11 @@ impl App {
                 stop_queued: Default::default(),
                 modifiers: DockerModifier::empty(),
                 log_area_content: None,
+                log_streamer_handle: None,
+                log_area_content2: Arc::new(Mutex::new(HashMap::new())),
                 error_msg: None,
+                auto_scroll: true,
+                stream_options: StreamOptions::default(),
             },
             show_popup: false,
             running: true,
@@ -135,18 +225,20 @@ impl App {
             .toggle(DockerModifier::from_bits_truncate(code));
     }
 
-    pub fn up(&mut self) {
+    // TODO: we may wrap around: https://docs.rs/ratatui/latest/src/demo2/tabs/recipe.rs.html#105
+    pub fn up(&mut self, _tx: Sender<DockerEvent>) {
         self.compose_content.state.select_previous();
     }
 
-    pub fn up_first(&mut self) {
+    pub fn up_first(&mut self, _tx: Sender<DockerEvent>) {
         self.compose_content.state.select_first();
     }
 
-    pub fn down(&mut self) {
+    pub fn down(&mut self, _tx: Sender<DockerEvent>) {
         self.compose_content.state.select_next();
     }
-    pub fn down_last(&mut self) {
+
+    pub fn down_last(&mut self, _tx: Sender<DockerEvent>) {
         self.compose_content.state.select_last();
     }
 
@@ -310,14 +402,14 @@ impl App {
                         .start_queued
                         .names
                         .iter()
-                        .find_map(|(k, n)| if n == name { Some(k) } else { None })
+                        // TODO: docker compose names them by top-level folder name.. this is not a reliable way to solve this.
+                        .find_map(|(k, n)| if name.contains(n) { Some(k) } else { None })
                         .cloned()
                     {
                         acc.push(index);
                     }
                     acc
                 });
-
         let clear_stop =
             self.running_container_names
                 .iter()
@@ -328,7 +420,7 @@ impl App {
                         .stop_queued
                         .names
                         .iter()
-                        .find_map(|(k, n)| if n == name { Some(k) } else { None })
+                        .find_map(|(k, n)| if name.contains(n) { Some(k) } else { None })
                         .cloned()
                     {
                         acc.push(index);
@@ -359,76 +451,20 @@ impl App {
         Ok(())
     }
 
-    pub async fn stream_container_logs(&self) -> Option<String> {
-        if let Some(_selected) = self.compose_content.state.selected() {
-            // TODO: Needs work: do it in the background, and a lot of unwraps.
-            // let key = &self.compose_content.compose.services.0.keys()[selected];
-            // let mut list_container_filters = HashMap::new();
-            // list_container_filters.insert("status", vec!["running"]);
-            // let containers = &self
-            //     .docker
-            //     .list_containers(Some(ListContainersOptions {
-            //         all: true,
-            //         filters: list_container_filters,
-            //         ..Default::default()
-            //     }))
-            //     .await
-            //     .unwrap();
+    pub fn stream_container_logs(&self) -> Option<String> {
+        let selected = self.compose_content.state.selected()?;
+        let key = &self.compose_content.compose.services.0.keys()[selected];
+        let child = std::process::Command::new("docker")
+            .args(["compose", "logs", key, "--no-color", "--no-log-prefix"])
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .stdin(Stdio::null())
+            .spawn()
+            .unwrap();
 
-            // let c = containers
-            //     .iter()
-            //     .cloned()
-            //     .flat_map(|c| c.names)
-            //     .flatten()
-            //     .map(|name| name.trim_start_matches("/").into())
-            //     .collect::<Vec<String>>();
-
-            // TODO: Needs work: match those to their real names.. probably we should do this at the startup
-
-            let key = "docker-ratatui-redis-1";
-            let options = Some(LogsOptions::<String> {
-                stdout: true,
-                timestamps: false,
-                since: 0,
-                ..Default::default()
-            });
-
-            let mut logs = self.docker.logs(key, options);
-            let mut output = vec![];
-
-            while let Some(Ok(value)) = logs.next().await {
-                let data = value.to_string();
-                if !data.trim().is_empty() {
-                    output.push(data);
-                }
-            }
-
-            Some(output.join(""))
-        } else {
-            None
-        }
-        //     let options = Some(LogsOptions {
-        //         stdout: true,
-        //         stderr: false,
-        //         tail: String::from("all"),
-        //         ..Default::default()
-        //     });
-        //     let logs = self
-        //         .docker
-        //         .logs(&key, options.clone())
-        //         .try_collect::<Vec<_>>()
-        //         .await
-        //         .unwrap();
-        //     let logs = logs.first().unwrap();
-
-        //     if let LogOutput::StdOut { message } = logs {
-        //         return Some(String::from_utf8_lossy(message).into());
-        //     } else {
-        //         None
-        //     }
-        // } else {
-        //     None
-        // }
+        let op = child.wait_with_output().unwrap();
+        let output = String::from_utf8_lossy(&op.stdout).into_owned();
+        Some(output)
     }
 
     pub fn clear_starting(&mut self) {

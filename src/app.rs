@@ -58,6 +58,7 @@ pub type AppResult<T> = std::result::Result<T, Box<dyn error::Error>>;
 /// Application.
 #[derive(Debug)]
 pub struct App {
+    pub project_name: String,
     pub running: bool,
     pub compose_content: ComposeList,
     pub running_container_names: Vec<String>,
@@ -66,6 +67,7 @@ pub struct App {
     pub show_popup: bool,
     pub vertical_scroll_state: ScrollbarState,
     pub vertical_scroll: usize,
+    pub container_name_mapping: HashMap<usize, String>,
 }
 
 #[derive(Debug, Clone)]
@@ -111,7 +113,7 @@ pub fn get_log_stream(
         .filter_map(|res| async move {
             Some(match res {
                 Ok(r) => format!("{r}"),
-                Err(err) => format!("{err}"),
+                Err(_err) => String::default(), // format!("{err}"),
             })
         });
 
@@ -126,9 +128,10 @@ pub struct ComposeList {
     pub stop_queued: Queued,
     pub modifiers: DockerModifier,
     pub log_area_content: Option<String>,
-    pub log_streamer_handle: Option<JoinHandle<()>>,
+    pub log_streamer_handle: Arc<Mutex<HashMap<usize, JoinHandle<()>>>>,
     pub log_area_content2: Arc<Mutex<HashMap<usize, Vec<String>>>>,
     pub error_msg: Option<String>,
+    // Auto scroll can be upgraded by selecting last item in the Vec. Maybe disable it when the scrollbar is used?
     pub auto_scroll: bool,
     pub stream_options: StreamOptions,
 }
@@ -137,22 +140,27 @@ impl ComposeList {
     pub async fn start_log_stream(
         &mut self,
         idx: usize,
-        id: String,
+        id: &str,
         docker: bollard::Docker,
     ) -> AppResult<()> {
         self.auto_scroll = true;
         let mut logs_stream = get_log_stream(&id, &docker, self.stream_options.clone());
 
-        // let tx = self.tx.clone();
         let log_messages = self.log_area_content2.clone();
-        self.log_streamer_handle = Some(tokio::spawn(async move {
-            while let Some(v) = logs_stream.next().await {
-                {
-                    log_messages.lock().unwrap().entry(idx).or_default().push(v);
+        let mut guard = self.log_streamer_handle.lock().unwrap();
+        if let Some(handle) = guard.remove(&idx) {
+            handle.abort();
+        }
+        guard.insert(
+            idx,
+            tokio::spawn(async move {
+                while let Some(v) = logs_stream.next().await {
+                    {
+                        log_messages.lock().unwrap().entry(idx).or_default().push(v);
+                    }
                 }
-                // let _ = tx.send(Message::Tick).await;
-            }
-        }));
+            }),
+        );
 
         Ok(())
     }
@@ -166,7 +174,9 @@ pub struct Queued {
 
 impl App {
     pub fn new(
+        project_name: String,
         compose: Compose,
+        container_name_mapping: HashMap<usize, String>,
         running_container_names: Vec<String>,
         docker: Docker,
         target: String,
@@ -174,6 +184,7 @@ impl App {
         let mut state = ListState::default();
         state.select_first();
         Self {
+            project_name,
             compose_content: ComposeList {
                 compose,
                 state,
@@ -181,12 +192,13 @@ impl App {
                 stop_queued: Default::default(),
                 modifiers: DockerModifier::empty(),
                 log_area_content: None,
-                log_streamer_handle: None,
+                log_streamer_handle: Arc::new(Mutex::new(HashMap::new())),
                 log_area_content2: Arc::new(Mutex::new(HashMap::new())),
                 error_msg: None,
                 auto_scroll: true,
                 stream_options: StreamOptions::default(),
             },
+            container_name_mapping,
             show_popup: false,
             running: true,
             running_container_names,
@@ -195,6 +207,52 @@ impl App {
             vertical_scroll_state: ScrollbarState::default(),
             vertical_scroll: 0,
         }
+    }
+
+    pub fn reset_scroll(&mut self) {
+        self.vertical_scroll = 0;
+        self.vertical_scroll_state = self.vertical_scroll_state.position(0);
+    }
+
+    pub fn clear_current_log(&mut self) {
+        if let Some(selected) = self.compose_content.state.selected() {
+            *self
+                .compose_content
+                .log_area_content2
+                .lock()
+                .unwrap()
+                .entry(selected)
+                .or_default() = Vec::new();
+        }
+    }
+
+    // TODO: This moves to the last item..
+    pub fn auto_scroll(&mut self) {
+        let Some(selected) = self.compose_content.state.selected() else {
+            return;
+        };
+        self.vertical_scroll = self
+            .compose_content
+            .log_area_content2
+            .lock()
+            .unwrap()
+            .get(&selected)
+            .map_or(1, |v| v.len().saturating_sub(1));
+        self.vertical_scroll_state.last();
+    }
+
+    pub async fn restart_log_streaming(&mut self) -> AppResult<()> {
+        let Some(selected) = self.compose_content.state.selected() else {
+            return Ok(());
+        };
+        let Some(container_name) = self.container_name_mapping.get(&selected) else {
+            return Ok(());
+        };
+        self.compose_content
+            .start_log_stream(selected, container_name, self.docker.clone())
+            .await?;
+
+        Ok(())
     }
 
     /// Handles the tick event of the terminal.
@@ -207,10 +265,6 @@ impl App {
 
     pub fn set_error_log(&mut self, error: String) {
         self.compose_content.error_msg = Some(error);
-    }
-
-    pub fn set_container_log(&mut self, content: String) {
-        self.compose_content.log_area_content = Some(content);
     }
 
     pub fn clear_latest_error_log(&mut self) {
@@ -359,6 +413,11 @@ impl App {
     pub fn restart(&mut self) -> Option<Child> {
         let selected = self.compose_content.state.selected()?;
         let key = &self.compose_content.compose.services.0.keys()[selected];
+        self.compose_content
+            .log_area_content2
+            .lock()
+            .unwrap()
+            .remove(&selected);
 
         let child = Command::new("docker")
             .args(["compose", "-f", &self.target, "restart", key])
@@ -447,6 +506,8 @@ impl App {
             .stop_queued
             .names
             .retain(|i, _| clear_stop.contains(i));
+
+        self.restart_log_streaming().await?;
 
         Ok(())
     }

@@ -9,6 +9,7 @@ use ratatui::backend::CrosstermBackend;
 use ratatui::Terminal;
 use std::collections::HashMap;
 use std::io;
+use std::path::Path;
 
 #[tokio::main]
 async fn main() -> AppResult<()> {
@@ -26,6 +27,7 @@ async fn main() -> AppResult<()> {
         }))
         .await?;
 
+    // TODO: Maybe update these?
     let running_container_names = containers
         .iter()
         .cloned()
@@ -34,46 +36,59 @@ async fn main() -> AppResult<()> {
         .map(|name| name.trim_start_matches("/").into())
         .collect::<Vec<String>>();
 
-    // TODO: probably do this periodically.. we1ll need an Arc<Mutex<T>> around the data, but that's not that bad
-    // fn scheduler(args: &CliArgs, docker_tx: Sender<DockerMessage>) {
-    //     let update_duration = std::time::Duration::from_millis(u64::from(args.docker_interval));
-    //     let mut now = std::time::Instant::now();
-    //     tokio::spawn(async move {
-    //         loop {
-    //             let to_sleep = update_duration.saturating_sub(now.elapsed());
-    //             tokio::time::sleep(to_sleep).await;
-    //             docker_tx.send(DockerMessage::Update).await.ok();
-    //             now = std::time::Instant::now();
-    //         }
-    //     });
-    // }
-
     let file = std::env::args()
         .nth(1)
         .unwrap_or_else(|| "docker-compose.yml".to_string());
+
     let file_payload = std::fs::read_to_string(&file)?;
     let compose_content = match serde_yaml::from_str::<Compose>(&file_payload) {
         Ok(c) => c,
         Err(e) => panic!("Failed to parse docker-compose file: {}", e),
     };
 
+    // Try to load the .env from the same directory as the docker-compose file.
+    let sfile = Path::new(&file).canonicalize()?;
+    let dotenv_file = sfile.parent().expect("a directory").join(".env");
+    dotenvy::from_path(dotenv_file).ok();
+
+    let project_name = if let Ok(project_name) = std::env::var("COMPOSE_PROJECT_NAME") {
+        project_name
+    } else {
+        let components = sfile.components().collect::<Vec<_>>();
+        if let Some(component) = components.get(components.len().saturating_sub(2)) {
+            component.as_os_str().to_string_lossy().into_owned()
+        } else {
+            // TODO: This shouldn't happen ever.
+            "docker".to_string()
+        }
+    };
+
+    let mut container_name_mapping = HashMap::new();
+    for (i, (service_name, info)) in compose_content.services.clone().0.iter().enumerate() {
+        let service_name = if let Some(info) = info {
+            if let Some(container_name) = &info.container_name {
+                container_name.clone()
+            } else {
+                // We don't scale services, the 1 index should be fine.
+                format!("{}-{}-1", project_name, service_name)
+            }
+        } else {
+            format!("{}-{}-1", project_name, service_name)
+        };
+        container_name_mapping.insert(i, service_name.clone());
+    }
     let mut app = App::new(
+        project_name,
         compose_content,
+        container_name_mapping,
         running_container_names,
         docker.clone(),
         file,
     );
-    for (i, service) in app
-        .compose_content
-        .compose
-        .services
-        .clone()
-        .0
-        .keys()
-        .enumerate()
-    {
+
+    for (i, service_name) in &app.container_name_mapping {
         app.compose_content
-            .start_log_stream(i, service.clone(), docker.clone())
+            .start_log_stream(*i, service_name, docker.clone())
             .await?;
     }
 
@@ -106,9 +121,6 @@ async fn main() -> AppResult<()> {
                     app.set_error_log(log);
                     app.show_popup = true;
                     app.clear_starting();
-                }
-                DockerEvent::ContainerLog(log) => {
-                    app.set_container_log(log);
                 }
             }
         }

@@ -177,6 +177,10 @@ pub fn render(app: &mut App, frame: &mut Frame) {
         .vertical_scroll_state
         .viewport_content_length(6)
         .content_length(content.len());
+    app.vertical_scroll_state = app
+        .vertical_scroll_state
+        .viewport_content_length(6)
+        .content_length(content.len());
     frame.render_widget(
         Paragraph::new(content.join(""))
             .block(
@@ -236,18 +240,8 @@ pub fn render(app: &mut App, frame: &mut Frame) {
     let legend = create_legend();
     frame.render_widget(legend, main_and_legend[1]);
 
-    let content = app
-        .compose_content
-        .log_area_content2
-        .lock()
-        .unwrap()
-        .get(&app.compose_content.state.selected().unwrap_or(0))
-        .cloned()
-        .unwrap_or_default();
-    app.vertical_scroll_state = app
-        .vertical_scroll_state
-        .viewport_content_length(6)
-        .content_length(content.len());
+    // TODO: Use .expect() probably..
+    let content = app.compose_content.error_msg.as_deref().unwrap_or_default();
 
     let scrollbar = Scrollbar::new(ScrollbarOrientation::VerticalRight)
         .begin_symbol(Some("↑"))
@@ -261,10 +255,9 @@ pub fn render(app: &mut App, frame: &mut Frame) {
         &mut app.vertical_scroll_state,
     );
     if app.show_popup {
-        // TODO: separate scroll here
         let area = frame.area();
         let popup = Popup::default()
-            .content(content.join(""))
+            .content(content)
             .style(Style::new().blue().bg(Color::Black))
             .title("Error")
             .title_style(Style::new().black().bold())

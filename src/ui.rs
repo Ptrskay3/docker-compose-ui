@@ -18,42 +18,49 @@ fn create_legend<'a>() -> Paragraph<'a> {
             "(Enter)",
             Style::default()
                 .add_modifier(Modifier::BOLD)
-                .fg(Color::Cyan),
+                .fg(Color::Magenta),
         ),
         Span::raw(" start selected, "),
         Span::styled(
             "(a)",
             Style::default()
                 .add_modifier(Modifier::BOLD)
-                .fg(Color::Cyan),
+                .fg(Color::Magenta),
         ),
         Span::raw(" start all containers, "),
         Span::styled(
             "(s)",
             Style::default()
                 .add_modifier(Modifier::BOLD)
-                .fg(Color::Cyan),
+                .fg(Color::Magenta),
         ),
         Span::raw(" stop selected, "),
         Span::styled(
             "(x)",
             Style::default()
                 .add_modifier(Modifier::BOLD)
-                .fg(Color::Cyan),
+                .fg(Color::Magenta),
         ),
         Span::raw(" stop all containers, "),
         Span::styled(
             "(r)",
             Style::default()
                 .add_modifier(Modifier::BOLD)
-                .fg(Color::Cyan),
+                .fg(Color::Magenta),
         ),
         Span::raw(" restart container, "),
+        Span::styled(
+            "(ctrl + l)",
+            Style::default()
+                .add_modifier(Modifier::BOLD)
+                .fg(Color::Magenta),
+        ),
+        Span::raw(" clear log area, "),
         Span::styled(
             "(q)",
             Style::default()
                 .add_modifier(Modifier::BOLD)
-                .fg(Color::Cyan),
+                .fg(Color::Magenta),
         ),
         Span::raw(" to quit."),
     ]);
@@ -177,12 +184,17 @@ pub fn render(app: &mut App, frame: &mut Frame) {
         .vertical_scroll_state
         .viewport_content_length(6)
         .content_length(content.len());
-    app.vertical_scroll_state = app
-        .vertical_scroll_state
-        .viewport_content_length(6)
-        .content_length(content.len());
+    let wrapped = Text::from(
+        textwrap::wrap(
+            &content.join(""),
+            textwrap::Options::new(main_and_logs[1].width as _),
+        )
+        .iter()
+        .map(|s| Line::from(s.to_string()))
+        .collect::<Vec<_>>(),
+    );
     frame.render_widget(
-        Paragraph::new(content.join(""))
+        Paragraph::new(wrapped)
             .block(
                 Block::bordered()
                     .title("Log area")
@@ -256,18 +268,26 @@ pub fn render(app: &mut App, frame: &mut Frame) {
     );
     if app.show_popup {
         let area = frame.area();
-        let popup = Popup::default()
-            .content(content)
-            .style(Style::new().blue().bg(Color::Black))
-            .title("Error")
-            .title_style(Style::new().black().bold())
-            .border_style(Style::new().red());
         let popup_area = Rect {
             x: area.width / 16,
             y: area.height / 12,
             width: area.width / 8 * 7,
             height: area.height / 8 * 5,
         };
+        let wrapped = Text::from(
+            textwrap::wrap(content, textwrap::Options::new(popup_area.width as _))
+                .iter()
+                .map(|s| Line::from(s.to_string()))
+                .collect::<Vec<_>>(),
+        );
+
+        let popup = Popup::default()
+            .content(wrapped)
+            .style(Style::new().blue().bg(Color::Black))
+            .title("Error")
+            .title_style(Style::new().black().bold())
+            .border_style(Style::new().red());
+
         frame.render_stateful_widget(
             Scrollbar::new(ScrollbarOrientation::VerticalRight)
                 .begin_symbol(Some("↑"))

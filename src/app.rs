@@ -127,7 +127,6 @@ pub struct ComposeList {
     pub start_queued: Queued,
     pub stop_queued: Queued,
     pub modifiers: DockerModifier,
-    pub log_area_content: Option<String>,
     pub log_streamer_handle: Arc<Mutex<HashMap<usize, JoinHandle<()>>>>,
     pub log_area_content2: Arc<Mutex<HashMap<usize, Vec<String>>>>,
     pub error_msg: Option<String>,
@@ -191,7 +190,6 @@ impl App {
                 start_queued: Default::default(),
                 stop_queued: Default::default(),
                 modifiers: DockerModifier::empty(),
-                log_area_content: None,
                 log_streamer_handle: Arc::new(Mutex::new(HashMap::new())),
                 log_area_content2: Arc::new(Mutex::new(HashMap::new())),
                 error_msg: None,
@@ -224,21 +222,6 @@ impl App {
                 .entry(selected)
                 .or_default() = Vec::new();
         }
-    }
-
-    // TODO: This moves to the last item..
-    pub fn auto_scroll(&mut self) {
-        let Some(selected) = self.compose_content.state.selected() else {
-            return;
-        };
-        self.vertical_scroll = self
-            .compose_content
-            .log_area_content2
-            .lock()
-            .unwrap()
-            .get(&selected)
-            .map_or(1, |v| v.len().saturating_sub(1));
-        self.vertical_scroll_state.last();
     }
 
     pub async fn restart_log_streaming(&mut self) -> AppResult<()> {

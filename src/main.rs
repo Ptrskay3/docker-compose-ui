@@ -51,9 +51,7 @@ async fn main() -> AppResult<()> {
     let dotenv_file = sfile.parent().expect("a directory").join(".env");
     dotenvy::from_path(dotenv_file).ok();
 
-    let project_name = if let Ok(project_name) = std::env::var("COMPOSE_PROJECT_NAME") {
-        project_name
-    } else {
+    let project_name = std::env::var("COMPOSE_PROJECT_NAME").unwrap_or_else(|_| {
         let components = sfile.components().collect::<Vec<_>>();
         if let Some(component) = components.get(components.len().saturating_sub(2)) {
             component.as_os_str().to_string_lossy().into_owned()
@@ -61,7 +59,7 @@ async fn main() -> AppResult<()> {
             // TODO: This shouldn't happen ever.
             "docker".to_string()
         }
-    };
+    });
 
     let mut container_name_mapping = HashMap::new();
     for (i, (service_name, info)) in compose_content.services.clone().0.iter().enumerate() {

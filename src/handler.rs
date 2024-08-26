@@ -113,7 +113,7 @@ pub async fn handle_key_events(
                 tx.send(DockerEvent::Refresh).await.unwrap();
             });
         }
-        KeyCode::Char('x') if key_event.modifiers == KeyModifiers::CONTROL => {
+        KeyCode::Char('l') if key_event.modifiers == KeyModifiers::CONTROL => {
             app.clear_current_log();
         }
         KeyCode::Char('x') => {
@@ -151,14 +151,6 @@ pub async fn handle_key_events(
         }
         KeyCode::Char(c) if ['1', '2', '3', '4', '5'].contains(&c) => {
             app.toggle_modifier(c);
-        }
-
-        KeyCode::Char('l') => {
-            println!("{:?}", app.vertical_scroll_state);
-            println!("{:?}", app.vertical_scroll);
-            // if let Some(logs) = app.stream_container_logs().await {
-            //     tx.send(DockerEvent::ContainerLog(logs)).await.unwrap();
-            // }
         }
 
         KeyCode::Char('j') | KeyCode::PageUp => {

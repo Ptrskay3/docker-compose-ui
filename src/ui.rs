@@ -174,7 +174,7 @@ pub fn render(app: &mut App, frame: &mut Frame) {
 
     let content = app
         .compose_content
-        .log_area_content2
+        .logs
         .lock()
         .unwrap()
         .get(&app.compose_content.state.selected().unwrap_or(0))
@@ -187,7 +187,8 @@ pub fn render(app: &mut App, frame: &mut Frame) {
     let wrapped = Text::from(
         textwrap::wrap(
             &content.join(""),
-            textwrap::Options::new(main_and_logs[1].width as _),
+            // Terminating 3 pixels before is a bit nicer
+            textwrap::Options::new(main_and_logs[1].width.saturating_sub(3) as _),
         )
         .iter()
         .map(|s| Line::from(s.to_string()))
@@ -275,10 +276,13 @@ pub fn render(app: &mut App, frame: &mut Frame) {
             height: area.height / 8 * 5,
         };
         let wrapped = Text::from(
-            textwrap::wrap(content, textwrap::Options::new(popup_area.width as _))
-                .iter()
-                .map(|s| Line::from(s.to_string()))
-                .collect::<Vec<_>>(),
+            textwrap::wrap(
+                content,
+                textwrap::Options::new(popup_area.width.saturating_sub(3) as _),
+            )
+            .iter()
+            .map(|s| Line::from(s.to_string()))
+            .collect::<Vec<_>>(),
         );
 
         let popup = Popup::default()

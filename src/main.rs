@@ -27,7 +27,6 @@ async fn main() -> AppResult<()> {
         }))
         .await?;
 
-    // TODO: Maybe update these?
     let running_container_names = containers
         .iter()
         .cloned()

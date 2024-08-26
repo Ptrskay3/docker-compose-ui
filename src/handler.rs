@@ -154,13 +154,11 @@ pub async fn handle_key_events(
         }
 
         KeyCode::Char('j') | KeyCode::PageUp => {
-            app.compose_content.auto_scroll = false;
             app.vertical_scroll = app.vertical_scroll.saturating_sub(1);
             app.vertical_scroll_state = app.vertical_scroll_state.position(app.vertical_scroll);
         }
 
         KeyCode::Char('k') | KeyCode::PageDown => {
-            app.compose_content.auto_scroll = false;
             app.vertical_scroll = app.vertical_scroll.saturating_add(1);
             app.vertical_scroll_state = app.vertical_scroll_state.position(app.vertical_scroll);
         }

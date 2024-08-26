@@ -128,13 +128,12 @@ pub struct ComposeList {
     pub stop_queued: Queued,
     pub modifiers: DockerModifier,
     pub log_streamer_handle: Arc<Mutex<HashMap<usize, JoinHandle<()>>>>,
-    pub log_area_content2: Arc<Mutex<HashMap<usize, Vec<String>>>>,
+    pub logs: Arc<Mutex<HashMap<usize, Vec<String>>>>,
     pub error_msg: Option<String>,
-    // Auto scroll can be upgraded by selecting last item in the Vec. Maybe disable it when the scrollbar is used?
-    pub auto_scroll: bool,
     pub stream_options: StreamOptions,
 }
 
+// TODO: Auto-scroll
 impl ComposeList {
     pub async fn start_log_stream(
         &mut self,
@@ -142,10 +141,9 @@ impl ComposeList {
         id: &str,
         docker: bollard::Docker,
     ) -> AppResult<()> {
-        self.auto_scroll = true;
         let mut logs_stream = get_log_stream(&id, &docker, self.stream_options.clone());
 
-        let log_messages = self.log_area_content2.clone();
+        let log_messages = self.logs.clone();
         let mut guard = self.log_streamer_handle.lock().unwrap();
         if let Some(handle) = guard.remove(&idx) {
             handle.abort();
@@ -191,9 +189,8 @@ impl App {
                 stop_queued: Default::default(),
                 modifiers: DockerModifier::empty(),
                 log_streamer_handle: Arc::new(Mutex::new(HashMap::new())),
-                log_area_content2: Arc::new(Mutex::new(HashMap::new())),
+                logs: Arc::new(Mutex::new(HashMap::new())),
                 error_msg: None,
-                auto_scroll: true,
                 stream_options: StreamOptions::default(),
             },
             container_name_mapping,
@@ -216,7 +213,7 @@ impl App {
         if let Some(selected) = self.compose_content.state.selected() {
             *self
                 .compose_content
-                .log_area_content2
+                .logs
                 .lock()
                 .unwrap()
                 .entry(selected)
@@ -396,11 +393,7 @@ impl App {
     pub fn restart(&mut self) -> Option<Child> {
         let selected = self.compose_content.state.selected()?;
         let key = &self.compose_content.compose.services.0.keys()[selected];
-        self.compose_content
-            .log_area_content2
-            .lock()
-            .unwrap()
-            .remove(&selected);
+        self.compose_content.logs.lock().unwrap().remove(&selected);
 
         let child = Command::new("docker")
             .args(["compose", "-f", &self.target, "restart", key])

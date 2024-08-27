@@ -1,5 +1,5 @@
 use crate::app::{App, AppResult};
-use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseEvent, MouseEventKind};
 use tokio::sync::mpsc::Sender;
 
 #[derive(Debug)]
@@ -186,6 +186,35 @@ pub async fn handle_key_events(
             app.wipe(false, tx.clone()).await?;
         }
 
+        _ => {}
+    }
+    Ok(())
+}
+
+pub async fn handle_mouse_events(
+    mouse_event: MouseEvent,
+    app: &mut App,
+    _tx: Sender<DockerEvent>,
+) -> AppResult<()> {
+    match mouse_event.kind {
+        MouseEventKind::ScrollUp => {
+            if app.show_popup {
+                app.popup_scroll = app.popup_scroll.saturating_sub(1);
+                app.popup_scroll_state = app.popup_scroll_state.position(app.popup_scroll);
+            } else {
+                app.vertical_scroll = app.vertical_scroll.saturating_sub(1);
+                app.vertical_scroll_state = app.vertical_scroll_state.position(app.vertical_scroll);
+            }
+        }
+        MouseEventKind::ScrollDown => {
+            if app.show_popup {
+                app.popup_scroll = app.popup_scroll.saturating_add(1);
+                app.popup_scroll_state = app.popup_scroll_state.position(app.popup_scroll);
+            } else {
+                app.vertical_scroll = app.vertical_scroll.saturating_add(1);
+                app.vertical_scroll_state = app.vertical_scroll_state.position(app.vertical_scroll);
+            }
+        }
         _ => {}
     }
     Ok(())

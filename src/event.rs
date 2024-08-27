@@ -66,7 +66,6 @@ impl EventHandler {
                       CrosstermEvent::FocusLost => {
                       },
                       CrosstermEvent::FocusGained => {
-                        _sender.send(Event::Key(KeyCode::Char('f').into())).unwrap()
                       },
                       CrosstermEvent::Paste(_) => {
                       },

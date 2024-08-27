@@ -2,7 +2,7 @@ use bollard::container::ListContainersOptions;
 use bollard::Docker;
 use dcr::app::{App, AppResult};
 use dcr::event::{Event, EventHandler};
-use dcr::handler::{handle_key_events, DockerEvent};
+use dcr::handler::{handle_key_events, handle_mouse_events, DockerEvent};
 use dcr::tui::Tui;
 use docker_compose_types::Compose;
 use indexmap::IndexMap;
@@ -106,7 +106,9 @@ async fn main() -> AppResult<()> {
         match tui.events.next().await? {
             Event::Tick => app.tick(),
             Event::Key(key_event) => handle_key_events(key_event, &mut app, tx.clone()).await?,
-            Event::Mouse(_) => {}
+            Event::Mouse(mouse_event) => {
+                handle_mouse_events(mouse_event, &mut app, tx.clone()).await?
+            }
             Event::Resize(_, _) => {}
         }
         if let Ok(docker_event) = rx.try_recv() {

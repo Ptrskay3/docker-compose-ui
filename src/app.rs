@@ -491,6 +491,7 @@ impl App {
         Ok(())
     }
 
+    // FIXME: Should run prune, not remove
     pub async fn remove_container(&mut self, v: bool, tx: Sender<DockerEvent>) -> AppResult<()> {
         let Some(selected) = self.compose_content.state.selected() else {
             return Ok(());
@@ -515,6 +516,7 @@ impl App {
         Ok(())
     }
 
+    // FIXME: Should run prune, not remove
     pub async fn wipe(&mut self, v: bool, tx: Sender<DockerEvent>) -> AppResult<()> {
         let result =
             futures::future::join_all(self.container_name_mapping.values().map(|container_name| {

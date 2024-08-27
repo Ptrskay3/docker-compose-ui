@@ -199,19 +199,19 @@ pub async fn handle_mouse_events(
     match mouse_event.kind {
         MouseEventKind::ScrollUp => {
             if app.show_popup {
-                app.popup_scroll = app.popup_scroll.saturating_sub(1);
+                app.popup_scroll = app.popup_scroll.saturating_sub(5);
                 app.popup_scroll_state = app.popup_scroll_state.position(app.popup_scroll);
             } else {
-                app.vertical_scroll = app.vertical_scroll.saturating_sub(1);
+                app.vertical_scroll = app.vertical_scroll.saturating_sub(5);
                 app.vertical_scroll_state = app.vertical_scroll_state.position(app.vertical_scroll);
             }
         }
         MouseEventKind::ScrollDown => {
             if app.show_popup {
-                app.popup_scroll = app.popup_scroll.saturating_add(1);
+                app.popup_scroll = app.popup_scroll.saturating_add(5);
                 app.popup_scroll_state = app.popup_scroll_state.position(app.popup_scroll);
             } else {
-                app.vertical_scroll = app.vertical_scroll.saturating_add(1);
+                app.vertical_scroll = app.vertical_scroll.saturating_add(5);
                 app.vertical_scroll_state = app.vertical_scroll_state.position(app.vertical_scroll);
             }
         }

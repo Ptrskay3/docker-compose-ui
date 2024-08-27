@@ -220,6 +220,7 @@ pub fn render(app: &mut App, frame: &mut Frame) {
         main_and_logs[1],
     );
 
+    // TODO: Ordering can be off..
     let items: Vec<ListItem> = app
         .compose_content
         .compose
@@ -237,7 +238,7 @@ pub fn render(app: &mut App, frame: &mut Frame) {
             } else if app
                 .running_container_names
                 .iter()
-                .any(|m| m.contains(real_name))
+                .any(|m| m == real_name)
             {
                 Style::default().fg(Color::LightGreen)
             } else {

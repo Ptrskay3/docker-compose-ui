@@ -5,6 +5,7 @@ use dcr::event::{Event, EventHandler};
 use dcr::handler::{handle_key_events, DockerEvent};
 use dcr::tui::Tui;
 use docker_compose_types::Compose;
+use indexmap::IndexMap;
 use ratatui::backend::CrosstermBackend;
 use ratatui::Terminal;
 use std::collections::HashMap;
@@ -60,7 +61,7 @@ async fn main() -> AppResult<()> {
         }
     });
 
-    let mut container_name_mapping = HashMap::new();
+    let mut container_name_mapping = IndexMap::new();
     for (i, (service_name, info)) in compose_content.services.clone().0.iter().enumerate() {
         let service_name = if let Some(info) = info {
             if let Some(container_name) = &info.container_name {

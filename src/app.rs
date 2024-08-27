@@ -12,6 +12,7 @@ use bollard::{
 };
 use docker_compose_types::Compose;
 use futures::{Stream, StreamExt};
+use indexmap::IndexMap;
 use tokio::{sync::mpsc::Sender, task::JoinHandle};
 
 use ratatui::widgets::{ListState, ScrollbarState};
@@ -67,7 +68,7 @@ pub struct App {
     pub show_popup: bool,
     pub vertical_scroll_state: ScrollbarState,
     pub vertical_scroll: usize,
-    pub container_name_mapping: HashMap<usize, String>,
+    pub container_name_mapping: IndexMap<usize, String>,
 }
 
 #[derive(Debug, Clone)]
@@ -127,8 +128,8 @@ pub struct ComposeList {
     pub start_queued: Queued,
     pub stop_queued: Queued,
     pub modifiers: DockerModifier,
-    pub log_streamer_handle: Arc<Mutex<HashMap<usize, JoinHandle<()>>>>,
-    pub logs: Arc<Mutex<HashMap<usize, Vec<String>>>>,
+    pub log_streamer_handle: Arc<Mutex<IndexMap<usize, JoinHandle<()>>>>,
+    pub logs: Arc<Mutex<IndexMap<usize, Vec<String>>>>,
     pub error_msg: Option<String>,
     pub stream_options: StreamOptions,
 }
@@ -145,7 +146,7 @@ impl ComposeList {
 
         let log_messages = self.logs.clone();
         let mut guard = self.log_streamer_handle.lock().unwrap();
-        if let Some(handle) = guard.remove(&idx) {
+        if let Some(handle) = guard.shift_remove(&idx) {
             handle.abort();
         }
         guard.insert(
@@ -166,14 +167,14 @@ impl ComposeList {
 #[derive(Debug, Default)]
 pub struct Queued {
     pub state: Vec<usize>,
-    pub names: HashMap<usize, String>,
+    pub names: IndexMap<usize, String>,
 }
 
 impl App {
     pub fn new(
         project_name: String,
         compose: Compose,
-        container_name_mapping: HashMap<usize, String>,
+        container_name_mapping: IndexMap<usize, String>,
         running_container_names: Vec<String>,
         docker: Docker,
         target: String,
@@ -188,8 +189,8 @@ impl App {
                 start_queued: Default::default(),
                 stop_queued: Default::default(),
                 modifiers: DockerModifier::empty(),
-                log_streamer_handle: Arc::new(Mutex::new(HashMap::new())),
-                logs: Arc::new(Mutex::new(HashMap::new())),
+                log_streamer_handle: Arc::new(Mutex::new(IndexMap::new())),
+                logs: Arc::new(Mutex::new(IndexMap::new())),
                 error_msg: None,
                 stream_options: StreamOptions::default(),
             },
@@ -384,7 +385,7 @@ impl App {
     pub fn restart(&mut self) -> Option<Child> {
         let selected = self.compose_content.state.selected()?;
         let key = &self.compose_content.compose.services.0.keys()[selected];
-        self.compose_content.logs.lock().unwrap().remove(&selected);
+        self.compose_content.logs.lock().unwrap().shift_remove(&selected);
 
         let child = Command::new("docker")
             .args(["compose", "-f", &self.target, "restart", key])

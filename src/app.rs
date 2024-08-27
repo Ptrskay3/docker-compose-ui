@@ -66,6 +66,8 @@ pub struct App {
     pub docker: Docker,
     pub target: String,
     pub show_popup: bool,
+    pub popup_scroll: usize,
+    pub popup_scroll_state: ScrollbarState,
     pub vertical_scroll_state: ScrollbarState,
     pub vertical_scroll: usize,
     pub container_name_mapping: IndexMap<usize, String>,
@@ -114,7 +116,7 @@ pub fn get_log_stream(
         .filter_map(|res| async move {
             Some(match res {
                 Ok(r) => format!("{r}"),
-                Err(_err) => String::default(), // format!("{err}"),
+                Err(_err) => String::default(),
             })
         });
 
@@ -202,12 +204,19 @@ impl App {
             target,
             vertical_scroll_state: ScrollbarState::default(),
             vertical_scroll: 0,
+            popup_scroll: 0,
+            popup_scroll_state: ScrollbarState::default(),
         }
     }
 
     pub fn reset_scroll(&mut self) {
         self.vertical_scroll = 0;
         self.vertical_scroll_state = self.vertical_scroll_state.position(0);
+    }
+
+    pub fn reset_popup_scroll(&mut self) {
+        self.popup_scroll_state = self.popup_scroll_state.position(0);
+        self.popup_scroll = 0;
     }
 
     pub fn clear_current_log(&mut self) {
@@ -385,7 +394,11 @@ impl App {
     pub fn restart(&mut self) -> Option<Child> {
         let selected = self.compose_content.state.selected()?;
         let key = &self.compose_content.compose.services.0.keys()[selected];
-        self.compose_content.logs.lock().unwrap().shift_remove(&selected);
+        self.compose_content
+            .logs
+            .lock()
+            .unwrap()
+            .shift_remove(&selected);
 
         let child = Command::new("docker")
             .args(["compose", "-f", &self.target, "restart", key])
@@ -445,7 +458,7 @@ impl App {
                         .stop_queued
                         .names
                         .iter()
-                        .find_map(|(k, n)| if name.contains(n) { Some(k) } else { None })
+                        .find_map(|(k, n)| if name == n { Some(k) } else { None })
                         .cloned()
                     {
                         acc.push(index);
@@ -476,22 +489,6 @@ impl App {
         self.restart_log_streaming().await?;
 
         Ok(())
-    }
-
-    pub fn stream_container_logs(&self) -> Option<String> {
-        let selected = self.compose_content.state.selected()?;
-        let key = &self.compose_content.compose.services.0.keys()[selected];
-        let child = std::process::Command::new("docker")
-            .args(["compose", "logs", key, "--no-color", "--no-log-prefix"])
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .stdin(Stdio::null())
-            .spawn()
-            .unwrap();
-
-        let op = child.wait_with_output().unwrap();
-        let output = String::from_utf8_lossy(&op.stdout).into_owned();
-        Some(output)
     }
 
     pub async fn remove_container(&mut self, v: bool, tx: Sender<DockerEvent>) -> AppResult<()> {

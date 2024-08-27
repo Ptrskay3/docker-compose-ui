@@ -47,18 +47,18 @@ async fn main() -> AppResult<()> {
     };
 
     // Try to load the .env from the same directory as the docker-compose file.
-    let sfile = Path::new(&file).canonicalize()?;
-    let dotenv_file = sfile.parent().expect("a directory").join(".env");
+    let full_path = Path::new(&file).canonicalize()?;
+    let dotenv_file = full_path.parent().expect("a directory").join(".env");
     dotenvy::from_path(dotenv_file).ok();
 
     let project_name = std::env::var("COMPOSE_PROJECT_NAME").unwrap_or_else(|_| {
-        let components = sfile.components().collect::<Vec<_>>();
-        if let Some(component) = components.get(components.len().saturating_sub(2)) {
-            component.as_os_str().to_string_lossy().into_owned()
-        } else {
-            // TODO: This shouldn't happen ever.
-            "docker".to_string()
-        }
+        let components = full_path.components().collect::<Vec<_>>();
+        components
+            .get(components.len().saturating_sub(2))
+            .expect("Failed to determine project name.")
+            .as_os_str()
+            .to_string_lossy()
+            .into_owned()
     });
 
     let mut container_name_mapping = IndexMap::new();
@@ -97,16 +97,12 @@ async fn main() -> AppResult<()> {
     let mut tui = Tui::new(terminal, events);
     tui.init()?;
 
-    // We may send 2 messages in one frame, so we need that to be buffered to avoid deadlocking in our main loop.
+    // We may send 2 messages in one frame, so we need that to be buffered to avoid waiting indefinitely on the sender side.
     let (tx, mut rx) = tokio::sync::mpsc::channel(2);
 
-    // Start the main loop.
     while app.running {
-        // Render the user interface.
-
         tui.draw(&mut app)?;
 
-        // Handle events.
         match tui.events.next().await? {
             Event::Tick => app.tick(),
             Event::Key(key_event) => handle_key_events(key_event, &mut app, tx.clone()).await?,
@@ -125,7 +121,6 @@ async fn main() -> AppResult<()> {
         }
     }
 
-    // Exit the user interface.
     tui.exit()?;
     Ok(())
 }

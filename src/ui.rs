@@ -5,7 +5,7 @@ use ratatui::{
     text::{Line, Span, Text},
     widgets::{
         Block, BorderType, Borders, Clear, List, ListDirection, ListItem, Paragraph, Scrollbar,
-        ScrollbarOrientation, Widget, Wrap,
+        ScrollbarOrientation, StatefulWidget, Widget, Wrap,
     },
     Frame,
 };
@@ -220,7 +220,6 @@ pub fn render(app: &mut App, frame: &mut Frame) {
         main_and_logs[1],
     );
 
-    // TODO: Ordering can be off..
     let items: Vec<ListItem> = app
         .compose_content
         .compose
@@ -235,11 +234,7 @@ pub fn render(app: &mut App, frame: &mut Frame) {
                 Style::default().fg(Color::Yellow)
             } else if app.compose_content.stop_queued.state.contains(&i) {
                 Style::default().fg(Color::Red)
-            } else if app
-                .running_container_names
-                .iter()
-                .any(|m| m == real_name)
-            {
+            } else if app.running_container_names.iter().any(|m| m == real_name) {
                 Style::default().fg(Color::LightGreen)
             } else {
                 Style::default().fg(Color::Gray)
@@ -273,7 +268,6 @@ pub fn render(app: &mut App, frame: &mut Frame) {
     let legend = create_legend();
     frame.render_widget(legend, main_and_legend[1]);
 
-    // TODO: Use .expect() probably..
     let content = app.compose_content.error_msg.as_deref().unwrap_or_default();
 
     let scrollbar = Scrollbar::new(ScrollbarOrientation::VerticalRight)
@@ -285,7 +279,6 @@ pub fn render(app: &mut App, frame: &mut Frame) {
             vertical: 1,
             horizontal: 0,
         }),
-        // FIXME: This should be separate really..
         &mut app.vertical_scroll_state,
     );
     if app.show_popup {
@@ -306,6 +299,10 @@ pub fn render(app: &mut App, frame: &mut Frame) {
             .map(|s| Line::from(s.to_string()))
             .collect::<Vec<_>>(),
         );
+        app.popup_scroll_state = app
+            .popup_scroll_state
+            .viewport_content_length(20)
+            .content_length(wrapped.height());
 
         let popup = Popup::default()
             .content(wrapped)
@@ -314,18 +311,17 @@ pub fn render(app: &mut App, frame: &mut Frame) {
             .title_style(Style::new().black().bold())
             .border_style(Style::new().red());
 
+        frame.render_stateful_widget(popup, popup_area, &mut app.popup_scroll);
         frame.render_stateful_widget(
             Scrollbar::new(ScrollbarOrientation::VerticalRight)
                 .begin_symbol(Some("↑"))
                 .end_symbol(Some("↓")),
-            main_and_logs[1].inner(Margin {
+            popup_area.inner(Margin {
                 vertical: 1,
                 horizontal: 0,
             }),
-            &mut app.vertical_scroll_state,
+            &mut app.popup_scroll_state,
         );
-
-        frame.render_widget(popup, popup_area);
     }
 }
 
@@ -342,8 +338,9 @@ struct Popup<'a> {
     style: Style,
 }
 
-impl Widget for Popup<'_> {
-    fn render(self, area: Rect, buf: &mut Buffer) {
+impl StatefulWidget for Popup<'_> {
+    type State = usize;
+    fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
         Clear.render(area, buf);
         let block = Block::new()
             .title(self.title)
@@ -351,7 +348,7 @@ impl Widget for Popup<'_> {
             .borders(Borders::ALL)
             .border_style(self.border_style);
         Paragraph::new(self.content)
-            .scroll((0, 0))
+            .scroll((*state as _, 0))
             .wrap(Wrap { trim: true })
             .style(self.style)
             .block(block)

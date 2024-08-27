@@ -24,6 +24,7 @@ pub async fn handle_key_events(
         KeyCode::Esc | KeyCode::Char('q') => {
             if app.show_popup {
                 app.show_popup = false;
+                app.reset_popup_scroll();
             } else {
                 app.quit();
             }
@@ -56,6 +57,7 @@ pub async fn handle_key_events(
         KeyCode::Enter => {
             if app.show_popup {
                 app.show_popup = false;
+                app.reset_popup_scroll();
                 return Ok(());
             }
             app.clear_latest_error_log();
@@ -155,22 +157,31 @@ pub async fn handle_key_events(
         }
 
         KeyCode::Char('j') | KeyCode::PageUp => {
-            app.vertical_scroll = app.vertical_scroll.saturating_sub(1);
-            app.vertical_scroll_state = app.vertical_scroll_state.position(app.vertical_scroll);
+            if app.show_popup {
+                app.popup_scroll = app.popup_scroll.saturating_sub(1);
+                app.popup_scroll_state = app.popup_scroll_state.position(app.popup_scroll);
+            } else {
+                app.vertical_scroll = app.vertical_scroll.saturating_sub(1);
+                app.vertical_scroll_state = app.vertical_scroll_state.position(app.vertical_scroll);
+            }
         }
 
         KeyCode::Char('k') | KeyCode::PageDown => {
-            app.vertical_scroll = app.vertical_scroll.saturating_add(1);
-            app.vertical_scroll_state = app.vertical_scroll_state.position(app.vertical_scroll);
+            if app.show_popup {
+                app.popup_scroll = app.popup_scroll.saturating_add(1);
+                app.popup_scroll_state = app.popup_scroll_state.position(app.popup_scroll);
+            } else {
+                app.vertical_scroll = app.vertical_scroll.saturating_add(1);
+                app.vertical_scroll_state = app.vertical_scroll_state.position(app.vertical_scroll);
+            }
         }
 
+        // TODO: Volumes? Do it in the background or show a loading indicator?
         KeyCode::Char('w') if key_event.modifiers == KeyModifiers::CONTROL => {
-            // TODO: do it in the background, or at least show an indicator
             app.remove_container(false, tx.clone()).await?;
         }
         KeyCode::Char('w')
-            if key_event.modifiers
-                == KeyModifiers::union(KeyModifiers::CONTROL, KeyModifiers::ALT) =>
+            if key_event.modifiers == (KeyModifiers::CONTROL | KeyModifiers::ALT) =>
         {
             app.wipe(false, tx.clone()).await?;
         }

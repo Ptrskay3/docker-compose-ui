@@ -227,13 +227,18 @@ pub fn render(app: &mut App, frame: &mut Frame) {
         .0
         .keys()
         .enumerate()
-        .map(|(i, s)| {
-            let content = Text::raw(s);
+        .zip(app.container_name_mapping.values())
+        .map(|((i, display_name), real_name)| {
+            let content = Text::raw(display_name);
             let style = if app.compose_content.start_queued.state.contains(&i) {
                 Style::default().fg(Color::Yellow)
             } else if app.compose_content.stop_queued.state.contains(&i) {
                 Style::default().fg(Color::Red)
-            } else if app.running_container_names.iter().any(|m| m.contains(s)) {
+            } else if app
+                .running_container_names
+                .iter()
+                .any(|m| m.contains(real_name))
+            {
                 Style::default().fg(Color::LightGreen)
             } else {
                 Style::default().fg(Color::Gray)

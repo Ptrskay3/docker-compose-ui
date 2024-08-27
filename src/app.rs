@@ -292,7 +292,11 @@ impl App {
         if let Some(selected) = self.compose_content.state.selected() {
             match queue_type {
                 QueueType::Stop => {
-                    let key = &self.compose_content.compose.services.0.keys()[selected];
+                    let key = self
+                        .container_name_mapping
+                        .get(&selected)
+                        .expect("to be set");
+
                     self.compose_content
                         .stop_queued
                         .names
@@ -302,7 +306,11 @@ impl App {
                     self.compose_content.stop_queued.state.dedup();
                 }
                 QueueType::Start => {
-                    let key = &self.compose_content.compose.services.0.keys()[selected];
+                    let key = self
+                        .container_name_mapping
+                        .get(&selected)
+                        .expect("to be set");
+
                     self.compose_content
                         .start_queued
                         .names
@@ -317,30 +325,13 @@ impl App {
     pub fn queue_all(&mut self, queue_type: QueueType) {
         match queue_type {
             QueueType::Start => {
-                self.compose_content.start_queued.names = self
-                    .compose_content
-                    .compose
-                    .services
-                    .0
-                    .iter()
-                    .enumerate()
-                    .map(|(i, (k, _))| (i, k.clone()))
-                    .collect();
-
+                self.compose_content.start_queued.names = self.container_name_mapping.clone();
                 self.compose_content.start_queued.state.clear();
                 let all = self.compose_content.compose.services.0.len();
                 self.compose_content.start_queued.state.extend(0..all);
             }
             QueueType::Stop => {
-                self.compose_content.stop_queued.names = self
-                    .compose_content
-                    .compose
-                    .services
-                    .0
-                    .iter()
-                    .enumerate()
-                    .map(|(i, (k, _))| (i, k.clone()))
-                    .collect();
+                self.compose_content.start_queued.names = self.container_name_mapping.clone();
                 self.compose_content.stop_queued.state.clear();
                 let all = self.compose_content.compose.services.0.len();
                 self.compose_content.stop_queued.state.extend(0..all);
@@ -426,7 +417,6 @@ impl App {
             .flatten()
             .map(|name| name.trim_start_matches("/").into())
             .collect::<Vec<String>>();
-
         let clear_start =
             self.running_container_names
                 .iter()
@@ -437,8 +427,7 @@ impl App {
                         .start_queued
                         .names
                         .iter()
-                        // TODO: docker compose names them by top-level folder name.. this is not a reliable way to solve this.
-                        .find_map(|(k, n)| if name.contains(n) { Some(k) } else { None })
+                        .find_map(|(k, n)| if name == n { Some(k) } else { None })
                         .cloned()
                     {
                         acc.push(index);

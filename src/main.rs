@@ -96,7 +96,8 @@ async fn main() -> AppResult<()> {
     let mut tui = Tui::new(terminal, events);
     tui.init()?;
 
-    let (tx, mut rx) = tokio::sync::mpsc::channel(1);
+    // We may send 2 messages in one frame, so we need that to be buffered to avoid deadlocking in our main loop.
+    let (tx, mut rx) = tokio::sync::mpsc::channel(2);
 
     // Start the main loop.
     while app.running {

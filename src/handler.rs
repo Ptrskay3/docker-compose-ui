@@ -2,6 +2,7 @@ use crate::app::{App, AppResult};
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use tokio::sync::mpsc::Sender;
 
+#[derive(Debug)]
 pub enum DockerEvent {
     Refresh,
     ErrorLog(String),
@@ -161,6 +162,17 @@ pub async fn handle_key_events(
         KeyCode::Char('k') | KeyCode::PageDown => {
             app.vertical_scroll = app.vertical_scroll.saturating_add(1);
             app.vertical_scroll_state = app.vertical_scroll_state.position(app.vertical_scroll);
+        }
+
+        KeyCode::Char('w') if key_event.modifiers == KeyModifiers::CONTROL => {
+            // TODO: do it in the background, or at least show an indicator
+            app.remove_container(false, tx.clone()).await?;
+        }
+        KeyCode::Char('w')
+            if key_event.modifiers
+                == KeyModifiers::union(KeyModifiers::CONTROL, KeyModifiers::ALT) =>
+        {
+            app.wipe(false, tx.clone()).await?;
         }
 
         _ => {}

@@ -7,7 +7,7 @@ use std::{
 };
 
 use bollard::{
-    container::{ListContainersOptions, LogsOptions},
+    container::{ListContainersOptions, LogsOptions, RemoveContainerOptions},
     Docker,
 };
 use docker_compose_types::Compose;
@@ -502,6 +502,63 @@ impl App {
         let op = child.wait_with_output().unwrap();
         let output = String::from_utf8_lossy(&op.stdout).into_owned();
         Some(output)
+    }
+
+    pub async fn remove_container(&mut self, v: bool, tx: Sender<DockerEvent>) -> AppResult<()> {
+        let Some(selected) = self.compose_content.state.selected() else {
+            return Ok(());
+        };
+        let container_name = &self.container_name_mapping[&selected];
+        if let Err(e) = self
+            .docker
+            .remove_container(
+                &container_name,
+                Some(RemoveContainerOptions {
+                    v,
+                    force: true,
+                    ..Default::default()
+                }),
+            )
+            .await
+        {
+            tx.send(DockerEvent::ErrorLog(e.to_string())).await?;
+        }
+        tx.send(DockerEvent::Refresh).await?;
+
+        Ok(())
+    }
+
+    pub async fn wipe(&mut self, v: bool, tx: Sender<DockerEvent>) -> AppResult<()> {
+        let result =
+            futures::future::join_all(self.container_name_mapping.values().map(|container_name| {
+                let docker = self.docker.clone();
+
+                async move {
+                    docker
+                        .remove_container(
+                            container_name,
+                            Some(RemoveContainerOptions {
+                                v,
+                                force: true,
+                                ..Default::default()
+                            }),
+                        )
+                        .await
+                }
+            }))
+            .await;
+        let errors = result
+            .iter()
+            .filter_map(|r| r.as_ref().err())
+            .map(|e| e.to_string())
+            .collect::<Vec<String>>();
+        if errors.len() > 0 {
+            tx.send(DockerEvent::ErrorLog(errors.join("\n"))).await?;
+        }
+
+        tx.send(DockerEvent::Refresh).await?;
+
+        Ok(())
     }
 
     pub fn clear_starting(&mut self) {

@@ -57,6 +57,20 @@ fn create_legend<'a>() -> Paragraph<'a> {
         ),
         Span::raw(" clear log area, "),
         Span::styled(
+            "(ctrl + w)",
+            Style::default()
+                .add_modifier(Modifier::BOLD)
+                .fg(Color::Magenta),
+        ),
+        Span::raw(" prune container, "),
+        Span::styled(
+            "(ctrl+ alt + w)",
+            Style::default()
+                .add_modifier(Modifier::BOLD)
+                .fg(Color::Magenta),
+        ),
+        Span::raw(" prune all containers, "),
+        Span::styled(
             "(q)",
             Style::default()
                 .add_modifier(Modifier::BOLD)
@@ -182,7 +196,7 @@ pub fn render(app: &mut App, frame: &mut Frame) {
         .unwrap_or_default();
     app.vertical_scroll_state = app
         .vertical_scroll_state
-        .viewport_content_length(6)
+        .viewport_content_length(20)
         .content_length(content.len());
     let wrapped = Text::from(
         textwrap::wrap(
@@ -265,10 +279,12 @@ pub fn render(app: &mut App, frame: &mut Frame) {
             vertical: 1,
             horizontal: 0,
         }),
+        // FIXME: This should be separate really..
         &mut app.vertical_scroll_state,
     );
     if app.show_popup {
         let area = frame.area();
+
         let popup_area = Rect {
             x: area.width / 16,
             y: area.height / 12,

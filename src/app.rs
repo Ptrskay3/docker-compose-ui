@@ -353,15 +353,13 @@ impl App {
         let selected = self.compose_content.state.selected()?;
         let key = &self.compose_content.compose.services.0.keys()[selected];
 
-        let args = &self.compose_content.modifiers.to_args();
-
         let child = if up {
             Command::new("docker")
                 .args(["compose", "-f", &self.target, "up", key, "-d"])
                 .stdout(Stdio::piped())
                 .stderr(Stdio::piped())
                 .stdin(Stdio::null())
-                .args(args)
+                .args(self.compose_content.modifiers.to_args())
                 .spawn()
                 .unwrap()
         } else {
@@ -370,7 +368,6 @@ impl App {
                 .stdout(Stdio::piped())
                 .stderr(Stdio::piped())
                 .stdin(Stdio::null())
-                .args(args)
                 .spawn()
                 .unwrap()
         };

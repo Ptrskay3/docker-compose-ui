@@ -8,7 +8,7 @@ edition = "2021"
 
 [dependencies]
 crossterm = { version = "0.28.1", features = ["event-stream"] }
-docker-compose-types = { version = "0.13.0" } 
+docker-compose-types = { version = "0.14.0" } 
 futures = "0.3.30"
 ratatui = "0.28.1"
 serde = "1.0.209"

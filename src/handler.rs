@@ -186,11 +186,13 @@ pub async fn handle_key_events(
         }
 
         KeyCode::Char('w') if key_event.modifiers == KeyModifiers::CONTROL => {
+            app.clear_current_log();
             app.remove_container(true, tx.clone()).await?;
         }
         KeyCode::Char('w')
             if key_event.modifiers == (KeyModifiers::CONTROL | KeyModifiers::ALT) =>
         {
+            app.clear_current_log();
             app.wipe(true, tx.clone()).await?;
         }
         KeyCode::Char('h') => app.show_help = !app.show_help,

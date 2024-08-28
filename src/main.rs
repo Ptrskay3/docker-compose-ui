@@ -75,6 +75,13 @@ async fn main() -> AppResult<()> {
         };
         container_name_mapping.insert(i, service_name.clone());
     }
+
+    let docker_version = docker
+        .version()
+        .await?
+        .version
+        .unwrap_or_else(|| "unknown".to_string());
+
     let mut app = App::new(
         project_name,
         compose_content,
@@ -83,6 +90,7 @@ async fn main() -> AppResult<()> {
         docker.clone(),
         file,
         full_path,
+        docker_version,
     );
 
     for (i, service_name) in &app.container_name_mapping {

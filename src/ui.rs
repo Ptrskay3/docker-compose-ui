@@ -11,10 +11,19 @@ use ratatui::{
 };
 use ratatui_macros::vertical;
 
-use crate::app::{App, DockerModifier};
+use crate::{
+    app::{App, DockerModifier},
+    utils::shorten_path,
+};
 
 fn create_help<'a>() -> Paragraph<'a> {
     let text = Line::default().spans(vec![
+        Span::styled(
+            "Basic ",
+            Style::default()
+                .add_modifier(Modifier::BOLD)
+                .fg(Color::Yellow),
+        ),
         Span::styled(
             "(Enter)",
             Style::default()
@@ -49,24 +58,46 @@ fn create_help<'a>() -> Paragraph<'a> {
                 .add_modifier(Modifier::BOLD)
                 .fg(Color::Magenta),
         ),
-        Span::raw(" restart container, "),
+        Span::raw(" restart container"),
+    ]);
+
+    let navigation = Line::default().spans(vec![
         Span::styled(
-            "(PageUp/j)",
+            "Navigation ",
+            Style::default()
+                .add_modifier(Modifier::BOLD)
+                .fg(Color::Yellow),
+        ),
+        Span::styled(
+            "(Mouse scroll up/PageUp/j) ",
             Style::default()
                 .add_modifier(Modifier::BOLD)
                 .fg(Color::Magenta),
         ),
-        Span::raw(" scroll up, "),
+        Span::raw("scroll logs up, "),
         Span::styled(
-            "(PageDown/k)",
+            "(Mouse scroll down/PageDown/k) ",
             Style::default()
                 .add_modifier(Modifier::BOLD)
                 .fg(Color::Magenta),
         ),
-        Span::raw(" scroll down "),
+        Span::raw("scroll logs down, "),
+        Span::styled(
+            "↓ / ↑ (shift + ↓) / (shift + ↑) ",
+            Style::default()
+                .add_modifier(Modifier::BOLD)
+                .fg(Color::Magenta),
+        ),
+        Span::raw("navigate container list (jump to first / last), "),
     ]);
 
     let bottom_line = Line::default().spans(vec![
+        Span::styled(
+            "Meta ",
+            Style::default()
+                .add_modifier(Modifier::BOLD)
+                .fg(Color::Yellow),
+        ),
         Span::styled(
             "(ctrl + l)",
             Style::default()
@@ -96,7 +127,8 @@ fn create_help<'a>() -> Paragraph<'a> {
         ),
         Span::raw(" to quit."),
     ]);
-    Paragraph::new(vec![text, bottom_line]).block(
+
+    Paragraph::new(vec![text, navigation, bottom_line]).block(
         Block::default()
             .borders(Borders::ALL)
             .title("Keys")
@@ -115,7 +147,16 @@ fn create_legend<'a>(app: &'a App) -> Paragraph<'a> {
         ),
         Span::raw(" Project file: "),
         Span::styled(
-            app.full_path.as_path().display().to_string(),
+            shorten_path(&app.full_path.as_path())
+                .to_string_lossy()
+                .into_owned(),
+            Style::default()
+                .add_modifier(Modifier::BOLD)
+                .fg(Color::Magenta),
+        ),
+        Span::raw(" Docker version: "),
+        Span::styled(
+            &app.docker_version,
             Style::default()
                 .add_modifier(Modifier::BOLD)
                 .fg(Color::Magenta),
@@ -276,7 +317,9 @@ pub fn render(app: &mut App, frame: &mut Frame) {
     }
 
     if app.show_help {
-        frame.render_widget(create_help(), frame.area());
+        let [_, inner_area, _] = vertical![>=0, <=5, >=0].areas(frame.area());
+
+        frame.render_widget(create_help(), inner_area);
         return;
     }
 

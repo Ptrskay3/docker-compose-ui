@@ -75,6 +75,7 @@ pub struct App {
     pub container_info: IndexMap<usize, Option<ContainerInspectResponse>>,
     pub full_path: std::path::PathBuf,
     pub show_help: bool,
+    pub docker_version: String,
 }
 
 #[derive(Debug, Clone)]
@@ -185,6 +186,7 @@ impl App {
         docker: Docker,
         target: String,
         full_path: impl AsRef<std::path::Path>,
+        docker_version: String,
     ) -> Self {
         let mut state = ListState::default();
         state.select_first();
@@ -214,6 +216,7 @@ impl App {
             container_info: IndexMap::new(),
             full_path: full_path.as_ref().to_path_buf(),
             show_help: false,
+            docker_version,
         }
     }
 

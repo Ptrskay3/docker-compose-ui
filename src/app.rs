@@ -209,6 +209,14 @@ impl App {
         }
     }
 
+    pub fn show_info(&mut self) {
+        // TODO
+        // let Some(selected) = self.compose_content.state.selected() else {
+        //     return;
+        // };
+        
+    }
+
     pub fn reset_scroll(&mut self) {
         self.vertical_scroll = 0;
         self.vertical_scroll_state = self.vertical_scroll_state.position(0);

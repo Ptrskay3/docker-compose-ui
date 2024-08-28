@@ -282,6 +282,7 @@ dependencies = [
  "futures",
  "indexmap 2.4.0",
  "ratatui",
+ "ratatui-macros",
  "serde",
  "serde_yaml",
  "textwrap",
@@ -934,6 +935,15 @@ dependencies = [
  "unicode-segmentation",
  "unicode-truncate",
  "unicode-width",
+]
+
+[[package]]
+name = "ratatui-macros"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "142d72442aff1ba834b80f50a22a48302e665e90b3a43eaab52bf99b037df0c0"
+dependencies = [
+ "ratatui",
 ]
 
 [[package]]

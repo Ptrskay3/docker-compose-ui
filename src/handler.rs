@@ -176,16 +176,17 @@ pub async fn handle_key_events(
             }
         }
 
-        // TODO: Volumes? Do it in the background or show a loading indicator?
         KeyCode::Char('w') if key_event.modifiers == KeyModifiers::CONTROL => {
-            app.remove_container(false, tx.clone()).await?;
+            app.remove_container(true, tx.clone()).await?;
         }
         KeyCode::Char('w')
             if key_event.modifiers == (KeyModifiers::CONTROL | KeyModifiers::ALT) =>
         {
-            app.wipe(false, tx.clone()).await?;
+            app.wipe(true, tx.clone()).await?;
         }
-
+        KeyCode::Char('i') => {
+            app.show_info();
+        }
         _ => {}
     }
     Ok(())

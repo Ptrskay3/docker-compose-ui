@@ -9,6 +9,7 @@ use ratatui::{
     },
     Frame,
 };
+use ratatui_macros::vertical;
 
 use crate::app::{App, DockerModifier};
 
@@ -50,26 +51,43 @@ fn create_legend<'a>() -> Paragraph<'a> {
         ),
         Span::raw(" restart container, "),
         Span::styled(
+            "(PageUp/j)",
+            Style::default()
+                .add_modifier(Modifier::BOLD)
+                .fg(Color::Magenta),
+        ),
+        Span::raw(" scroll up, "),
+        Span::styled(
+            "(PageDown/k)",
+            Style::default()
+                .add_modifier(Modifier::BOLD)
+                .fg(Color::Magenta),
+        ),
+        Span::raw(" scroll down "),
+    ]);
+
+    let bottom_line = Line::default().spans(vec![
+        Span::styled(
             "(ctrl + l)",
             Style::default()
                 .add_modifier(Modifier::BOLD)
                 .fg(Color::Magenta),
         ),
-        Span::raw(" clear log area, "),
+        Span::raw(" clear logs, "),
         Span::styled(
             "(ctrl + w)",
             Style::default()
                 .add_modifier(Modifier::BOLD)
                 .fg(Color::Magenta),
         ),
-        Span::raw(" prune container, "),
+        Span::raw(" remove container with volumes, "),
         Span::styled(
             "(ctrl+ alt + w)",
             Style::default()
                 .add_modifier(Modifier::BOLD)
                 .fg(Color::Magenta),
         ),
-        Span::raw(" prune all containers, "),
+        Span::raw(" remove all containers with volumes, "),
         Span::styled(
             "(q)",
             Style::default()
@@ -79,7 +97,7 @@ fn create_legend<'a>() -> Paragraph<'a> {
         Span::raw(" to quit."),
     ]);
 
-    Paragraph::new(text).block(
+    Paragraph::new(vec![text, bottom_line]).block(
         Block::default()
             .borders(Borders::ALL)
             .title("Keys")
@@ -171,9 +189,14 @@ fn create_docker_modifiers(modifiers: DockerModifier) -> Paragraph<'static> {
 
 pub fn render(app: &mut App, frame: &mut Frame) {
     let size = frame.area();
+    if size.width < MIN_COLS || size.height < MIN_ROWS {
+        frame.render_widget(ResizeScreen::new(), frame.area());
+        return;
+    }
+
     let main_and_legend = Layout::default()
         .direction(Direction::Vertical)
-        .constraints([Constraint::Min(1), Constraint::Length(3)])
+        .constraints([Constraint::Min(1), Constraint::Length(4)])
         .split(size);
 
     let main_and_modifier = Layout::default()
@@ -183,7 +206,7 @@ pub fn render(app: &mut App, frame: &mut Frame) {
 
     let main_and_logs = Layout::default()
         .direction(Direction::Horizontal)
-        .constraints([Constraint::Percentage(30), Constraint::Percentage(70)])
+        .constraints([Constraint::Percentage(20), Constraint::Percentage(80)])
         .split(main_and_modifier[0]);
 
     let content = app
@@ -212,7 +235,7 @@ pub fn render(app: &mut App, frame: &mut Frame) {
         Paragraph::new(wrapped)
             .block(
                 Block::bordered()
-                    .title("Log area")
+                    .title("Logs")
                     .border_type(BorderType::Rounded)
                     .style(Style::default().fg(Color::LightBlue).bg(Color::Black)),
             )
@@ -255,7 +278,7 @@ pub fn render(app: &mut App, frame: &mut Frame) {
         .direction(ListDirection::TopToBottom)
         .block(
             Block::bordered()
-                .title("Docker Compose UI")
+                .title("Docker Compose TUI")
                 .border_type(BorderType::Rounded)
                 .style(Style::default().fg(Color::LightBlue).bg(Color::Black)),
         );
@@ -306,7 +329,7 @@ pub fn render(app: &mut App, frame: &mut Frame) {
 
         let popup = Popup::default()
             .content(wrapped)
-            .style(Style::new().blue().bg(Color::Black))
+            .style(Style::new().light_blue().bg(Color::Black))
             .title("Error")
             .title_style(Style::new().black().bold())
             .border_style(Style::new().red());
@@ -353,5 +376,76 @@ impl StatefulWidget for Popup<'_> {
             .style(self.style)
             .block(block)
             .render(area, buf);
+    }
+}
+
+const MIN_ROWS: u16 = 20;
+const MIN_COLS: u16 = 100;
+
+#[derive(Debug)]
+pub struct ResizeScreen {
+    pub min_height: u16,
+    pub min_width: u16,
+}
+
+impl ResizeScreen {
+    pub fn new() -> Self {
+        Self {
+            min_width: MIN_COLS,
+            min_height: MIN_ROWS,
+        }
+    }
+}
+
+impl Widget for ResizeScreen {
+    fn render(self, area: ratatui::prelude::Rect, buffer: &mut Buffer) {
+        let original_height = area.height;
+        let original_width = area.width;
+
+        let mut height_span = Span::from(format!("{}", original_height));
+
+        let height_style = if original_height >= self.min_height {
+            Style::default().fg(Color::Green)
+        } else {
+            Style::default().fg(Color::Red)
+        };
+        height_span = height_span.style(height_style);
+
+        let mut width_span = Span::from(format!("{}", original_width));
+
+        let width_style = if original_width >= self.min_width {
+            Style::default().fg(Color::Green)
+        } else {
+            Style::default().fg(Color::Red)
+        };
+        width_span = width_span.style(width_style);
+
+        let messages = vec![
+            Line::from("Terminal too small; current size:"),
+            Line::from(vec![
+                Span::from("Width = "),
+                width_span,
+                Span::from(", ".to_string()),
+                Span::from("Height = "),
+                height_span,
+            ]),
+            Line::from(""),
+            Line::from("Required dimensions:"),
+            Line::from(vec![
+                Span::from(format!("Width = {}", self.min_width)),
+                Span::from(", ".to_string()),
+                Span::from(format!("Height = {}", self.min_height)),
+            ]),
+        ];
+
+        let [_, inner_area, _] = vertical![>=0, <=5, >=0].areas(area);
+        Text::from(messages)
+            .alignment(ratatui::layout::Alignment::Center)
+            .render(inner_area, buffer);
+
+        Block::bordered()
+            .title("< Terminal Too Small >")
+            .border_style(Style::default().fg(Color::Red))
+            .render(area, buffer);
     }
 }

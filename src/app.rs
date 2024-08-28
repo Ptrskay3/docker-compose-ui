@@ -8,6 +8,7 @@ use std::{
 
 use bollard::{
     container::{ListContainersOptions, LogsOptions, RemoveContainerOptions},
+    secret::ContainerInspectResponse,
     Docker,
 };
 use docker_compose_types::Compose;
@@ -71,6 +72,9 @@ pub struct App {
     pub vertical_scroll_state: ScrollbarState,
     pub vertical_scroll: usize,
     pub container_name_mapping: IndexMap<usize, String>,
+    pub container_info: IndexMap<usize, Option<ContainerInspectResponse>>,
+    pub full_path: std::path::PathBuf,
+    pub show_help: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -112,7 +116,7 @@ pub fn get_log_stream(
     stream_options: StreamOptions,
 ) -> impl Stream<Item = String> {
     let logstream = docker
-        .logs(&id, Some(stream_options.into()))
+        .logs(id, Some(stream_options.into()))
         .filter_map(|res| async move {
             Some(match res {
                 Ok(r) => format!("{r}"),
@@ -144,7 +148,7 @@ impl ComposeList {
         id: &str,
         docker: bollard::Docker,
     ) -> AppResult<()> {
-        let mut logs_stream = get_log_stream(&id, &docker, self.stream_options.clone());
+        let mut logs_stream = get_log_stream(id, &docker, self.stream_options.clone());
 
         let log_messages = self.logs.clone();
         let mut guard = self.log_streamer_handle.lock().unwrap();
@@ -180,6 +184,7 @@ impl App {
         running_container_names: Vec<String>,
         docker: Docker,
         target: String,
+        full_path: impl AsRef<std::path::Path>,
     ) -> Self {
         let mut state = ListState::default();
         state.select_first();
@@ -202,19 +207,30 @@ impl App {
             running_container_names,
             docker,
             target,
-            vertical_scroll_state: ScrollbarState::default(),
             vertical_scroll: 0,
+            vertical_scroll_state: ScrollbarState::default(),
             popup_scroll: 0,
             popup_scroll_state: ScrollbarState::default(),
+            container_info: IndexMap::new(),
+            full_path: full_path.as_ref().to_path_buf(),
+            show_help: false,
         }
     }
 
-    pub fn show_info(&mut self) {
-        // TODO
-        // let Some(selected) = self.compose_content.state.selected() else {
-        //     return;
-        // };
-        
+    pub async fn fetch_all_container_info(&mut self) -> AppResult<()> {
+        for (i, name) in &self.container_name_mapping {
+            if let Ok(info) = self
+                .docker
+                .inspect_container(name, Default::default())
+                .await
+            {
+                self.container_info.insert(*i, Some(info));
+            } else {
+                self.container_info.insert(*i, None);
+            }
+        }
+
+        Ok(())
     }
 
     pub fn reset_scroll(&mut self) {
@@ -249,6 +265,16 @@ impl App {
         self.compose_content
             .start_log_stream(selected, container_name, self.docker.clone())
             .await?;
+
+        Ok(())
+    }
+
+    pub async fn restart_all_log_streaming(&mut self) -> AppResult<()> {
+        for (selected, container_name) in &self.container_name_mapping {
+            self.compose_content
+                .start_log_stream(*selected, container_name, self.docker.clone())
+                .await?;
+        }
 
         Ok(())
     }
@@ -491,7 +517,8 @@ impl App {
             .names
             .retain(|i, _| clear_stop.contains(i));
 
-        self.restart_log_streaming().await?;
+        self.restart_all_log_streaming().await?;
+        self.fetch_all_container_info().await?;
 
         Ok(())
     }
@@ -505,7 +532,7 @@ impl App {
         if let Err(e) = self
             .docker
             .remove_container(
-                &container_name,
+                container_name,
                 Some(RemoveContainerOptions {
                     v,
                     force: true,
@@ -546,7 +573,7 @@ impl App {
             .filter_map(|r| r.as_ref().err())
             .map(|e| e.to_string())
             .collect::<Vec<String>>();
-        if errors.len() > 0 {
+        if !errors.is_empty() {
             tx.send(DockerEvent::ErrorLog(errors.join("\n"))).await?;
         }
 

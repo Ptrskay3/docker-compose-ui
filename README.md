@@ -9,3 +9,4 @@ TODO:
 - [ ] Display the project name, directory and the compose file name _somewhere_
 - [ ] Add an info panel for containers with CPU, memory, volumes, networks, etc.
 - [ ] Rework the Keys section because it looks horrible
+- [ ] cleanup

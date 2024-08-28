@@ -82,6 +82,7 @@ async fn main() -> AppResult<()> {
         running_container_names,
         docker.clone(),
         file,
+        full_path,
     );
 
     for (i, service_name) in &app.container_name_mapping {
@@ -89,6 +90,7 @@ async fn main() -> AppResult<()> {
             .start_log_stream(*i, service_name, docker.clone())
             .await?;
     }
+    app.fetch_all_container_info().await?;
 
     // Initialize the terminal user interface.
     let backend = CrosstermBackend::new(io::stderr());

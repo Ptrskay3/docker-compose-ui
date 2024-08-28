@@ -13,7 +13,7 @@ use ratatui_macros::vertical;
 
 use crate::app::{App, DockerModifier};
 
-fn create_legend<'a>() -> Paragraph<'a> {
+fn create_help<'a>() -> Paragraph<'a> {
     let text = Line::default().spans(vec![
         Span::styled(
             "(Enter)",
@@ -96,11 +96,36 @@ fn create_legend<'a>() -> Paragraph<'a> {
         ),
         Span::raw(" to quit."),
     ]);
-
     Paragraph::new(vec![text, bottom_line]).block(
         Block::default()
             .borders(Borders::ALL)
             .title("Keys")
+            .style(Style::default().fg(Color::LightBlue).bg(Color::Black)),
+    )
+}
+
+fn create_legend<'a>(app: &'a App) -> Paragraph<'a> {
+    let content = Line::from(vec![
+        Span::raw("Project name: "),
+        Span::styled(
+            app.project_name.as_str(),
+            Style::default()
+                .add_modifier(Modifier::BOLD)
+                .fg(Color::Magenta),
+        ),
+        Span::raw(" Project file: "),
+        Span::styled(
+            app.full_path.as_path().display().to_string(),
+            Style::default()
+                .add_modifier(Modifier::BOLD)
+                .fg(Color::Magenta),
+        ),
+    ]);
+
+    Paragraph::new(content).block(
+        Block::default()
+            .borders(Borders::ALL)
+            .title("General")
             .style(Style::default().fg(Color::LightBlue).bg(Color::Black)),
     )
 }
@@ -187,6 +212,62 @@ fn create_docker_modifiers(modifiers: DockerModifier) -> Paragraph<'static> {
     )
 }
 
+fn create_container_info(app: &mut App) -> impl Widget + '_ {
+    let selected = app.compose_content.state.selected().unwrap();
+    let Some(Some(container_info)) = app.container_info.get(&selected) else {
+        return Paragraph::new(Line::styled(
+            "Not available/Not running",
+            Style::default().fg(Color::Red),
+        ))
+        .block(
+            Block::default()
+                .title("Container info")
+                .borders(Borders::ALL)
+                .style(Style::default().fg(Color::LightBlue).bg(Color::Black)),
+        );
+    };
+    let value_style = Style::default().fg(Color::LightYellow);
+    let name = container_info.name.as_deref().unwrap_or_default();
+
+    let created = container_info.created.as_deref().unwrap_or_default();
+
+    let image = container_info
+        .config
+        .as_ref()
+        .and_then(|c| c.image.as_deref())
+        .unwrap_or_default();
+    let num_of_volumes = container_info
+        .config
+        .as_ref()
+        .and_then(|c| c.volumes.as_ref().map(|v| v.len()))
+        .unwrap_or_default();
+
+    let state = container_info
+        .state
+        .as_ref()
+        .and_then(|state| state.status.map(|status| status.to_string()))
+        .unwrap_or_else(|| String::from("unknown"));
+
+    let content = Line::from(vec![
+        Span::raw("image: "),
+        Span::styled(image, value_style),
+        Span::raw(" name: "),
+        Span::styled(name, value_style),
+        Span::raw(" created: "),
+        Span::styled(created, value_style),
+        Span::raw(" state: "),
+        Span::styled(state, value_style),
+        Span::raw(" attached volumes: "),
+        Span::styled(num_of_volumes.to_string(), value_style),
+    ]);
+    Paragraph::new(content).block(
+        Block::default()
+            .title("Container info")
+            .borders(Borders::ALL)
+            .style(Style::default().fg(Color::LightBlue).bg(Color::Black)),
+    )
+}
+
 pub fn render(app: &mut App, frame: &mut Frame) {
     let size = frame.area();
     if size.width < MIN_COLS || size.height < MIN_ROWS {
@@ -194,9 +275,14 @@ pub fn render(app: &mut App, frame: &mut Frame) {
         return;
     }
 
+    if app.show_help {
+        frame.render_widget(create_help(), frame.area());
+        return;
+    }
+
     let main_and_legend = Layout::default()
         .direction(Direction::Vertical)
-        .constraints([Constraint::Min(1), Constraint::Length(4)])
+        .constraints([Constraint::Min(1), Constraint::Length(3)])
         .split(size);
 
     let main_and_modifier = Layout::default()
@@ -208,6 +294,12 @@ pub fn render(app: &mut App, frame: &mut Frame) {
         .direction(Direction::Horizontal)
         .constraints([Constraint::Percentage(20), Constraint::Percentage(80)])
         .split(main_and_modifier[0]);
+
+    let logs_and_info = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Min(1), Constraint::Length(3)])
+        .split(main_and_logs[1]);
+    frame.render_widget(create_container_info(app), logs_and_info[1]);
 
     let content = app
         .compose_content
@@ -225,7 +317,7 @@ pub fn render(app: &mut App, frame: &mut Frame) {
         textwrap::wrap(
             &content.join(""),
             // Terminating 3 pixels before is a bit nicer
-            textwrap::Options::new(main_and_logs[1].width.saturating_sub(3) as _),
+            textwrap::Options::new(logs_and_info[0].width.saturating_sub(3) as _),
         )
         .iter()
         .map(|s| Line::from(s.to_string()))
@@ -240,7 +332,7 @@ pub fn render(app: &mut App, frame: &mut Frame) {
                     .style(Style::default().fg(Color::LightBlue).bg(Color::Black)),
             )
             .scroll((app.vertical_scroll as _, 0)),
-        main_and_logs[1],
+        logs_and_info[0],
     );
 
     let items: Vec<ListItem> = app
@@ -288,7 +380,7 @@ pub fn render(app: &mut App, frame: &mut Frame) {
     let docker_modifiers = create_docker_modifiers(app.compose_content.modifiers);
     frame.render_widget(docker_modifiers, main_and_modifier[1]);
 
-    let legend = create_legend();
+    let legend = create_legend(app);
     frame.render_widget(legend, main_and_legend[1]);
 
     let content = app.compose_content.error_msg.as_deref().unwrap_or_default();
@@ -298,7 +390,7 @@ pub fn render(app: &mut App, frame: &mut Frame) {
         .end_symbol(Some("↓"));
     frame.render_stateful_widget(
         scrollbar,
-        main_and_logs[1].inner(Margin {
+        logs_and_info[0].inner(Margin {
             vertical: 1,
             horizontal: 0,
         }),

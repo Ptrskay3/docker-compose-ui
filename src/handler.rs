@@ -22,6 +22,11 @@ pub async fn handle_key_events(
     match key_event.code {
         // Exit application on `ESC` or `q`
         KeyCode::Esc | KeyCode::Char('q') => {
+            // Help sits on top of everything, so just exit and don't do anything else then.
+            if app.show_help {
+                app.show_help = false;
+                return Ok(());
+            }
             if app.show_popup {
                 app.show_popup = false;
                 app.reset_popup_scroll();
@@ -55,6 +60,10 @@ pub async fn handle_key_events(
         }
 
         KeyCode::Enter => {
+            if app.show_help {
+                app.show_help = false;
+                return Ok(());
+            }
             if app.show_popup {
                 app.show_popup = false;
                 app.reset_popup_scroll();
@@ -184,9 +193,7 @@ pub async fn handle_key_events(
         {
             app.wipe(true, tx.clone()).await?;
         }
-        KeyCode::Char('i') => {
-            app.show_info();
-        }
+        KeyCode::Char('h') => app.show_help = !app.show_help,
         _ => {}
     }
     Ok(())

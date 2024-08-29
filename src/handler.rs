@@ -37,6 +37,14 @@ impl SplitScreen {
             SplitScreen::LowerRight => SplitScreen::UpperLeft,
         }
     }
+    fn transition_back(self) -> Self {
+        match self {
+            SplitScreen::LowerLeft => SplitScreen::UpperLeft,
+            SplitScreen::UpperRight => SplitScreen::LowerLeft,
+            SplitScreen::LowerRight => SplitScreen::UpperRight,
+            SplitScreen::UpperLeft => SplitScreen::LowerRight,
+        }
+    }
 }
 
 /// Handles the key events and updates the state of [`App`].
@@ -232,7 +240,12 @@ pub async fn handle_key_events(
                 app.full_screen_content = FullScreenContent::None;
             }
         }
-
+        KeyCode::BackTab => match app.full_screen_content {
+            FullScreenContent::Env(state) => {
+                app.full_screen_content = FullScreenContent::Env(state.transition_back());
+            }
+            _ => {}
+        },
         KeyCode::Tab => match app.full_screen_content {
             FullScreenContent::Env(state) => {
                 app.full_screen_content = FullScreenContent::Env(state.transition());

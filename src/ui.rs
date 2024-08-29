@@ -9,7 +9,7 @@ use ratatui::{
     },
     Frame,
 };
-use ratatui_macros::vertical;
+use ratatui_macros::{horizontal, vertical};
 
 use crate::{
     app::{App, DockerModifier},
@@ -348,6 +348,7 @@ pub fn render(app: &mut App, frame: &mut Frame) {
             // TODO: clean this up.
             let selected = app.compose_content.state.selected().unwrap();
             let Some(Some(container_info)) = app.container_info.get(&selected) else {
+                // TODO: This is crashing
                 let name = app.container_name_mapping.get(&selected).expect("to exist");
                 frame.render_widget(
                     Paragraph::new(Line::default().spans(vec![
@@ -381,16 +382,32 @@ pub fn render(app: &mut App, frame: &mut Frame) {
                 .map(|(name, value)| format!("{}: {}", name, value))
                 .collect();
 
-            let [upper_area, lower_area] = vertical![== 50%, == 50%].areas(frame.area());
+            let volumes = container_info
+                .mounts
+                .as_ref()
+                .map(|mounts| {
+                    mounts
+                        .iter()
+                        .map(|mount| {
+                            format!(
+                                "name: {}\nsource: {}\ndestination: {}\ndriver: {}",
+                                mount.name.as_deref().unwrap_or_default(),
+                                mount.source.as_deref().unwrap_or_default(),
+                                mount.destination.as_deref().unwrap_or_default(),
+                                mount.driver.as_deref().unwrap_or_default(),
+                            )
+                        })
+                        .collect::<Vec<_>>()
+                })
+                .unwrap_or_default();
+            let header_and_main = Layout::default()
+                .direction(Direction::Vertical)
+                .constraints([Constraint::Length(3), Constraint::Min(1)])
+                .split(size);
 
-            let upper_area = Layout::default()
-                .direction(Direction::Horizontal)
-                .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
-                .split(upper_area);
-            let lower_area = Layout::default()
-                .direction(Direction::Horizontal)
-                .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
-                .split(lower_area);
+            let [upper_area, lower_area] = vertical![== 50%, == 50%].areas(header_and_main[1]);
+            let [upper_left, upper_right] = horizontal![== 50%, == 50%].areas(upper_area);
+            let [lower_left, lower_right] = horizontal![== 50%, == 50%].areas(lower_area);
 
             let style_selected = Style::default().fg(Color::Red).bg(Color::Black);
             let style_not_selected = Style::default().fg(Color::LightBlue).bg(Color::Black);
@@ -426,13 +443,11 @@ pub fn render(app: &mut App, frame: &mut Frame) {
                 .lower_left_scroll_state
                 .viewport_content_length(20)
                 .content_length(env.len());
-
             app.alternate_screen.upper_left_scroll_state = app
                 .alternate_screen
                 .upper_left_scroll_state
                 .viewport_content_length(20)
                 .content_length(labels_formatted.len());
-
             app.alternate_screen.lower_right_scroll_state = app
                 .alternate_screen
                 .lower_right_scroll_state
@@ -442,7 +457,7 @@ pub fn render(app: &mut App, frame: &mut Frame) {
                 .alternate_screen
                 .upper_right_scroll_state
                 .viewport_content_length(20)
-                .content_length(20); // TODO
+                .content_length(volumes.len());
 
             // TODO: Coloring of env vars
             frame.render_widget(
@@ -454,7 +469,7 @@ pub fn render(app: &mut App, frame: &mut Frame) {
                             .borders(Borders::ALL)
                             .style(env_style),
                     ),
-                lower_area[0],
+                lower_left,
             );
             frame.render_widget(
                 Paragraph::new("networks here..")
@@ -465,7 +480,7 @@ pub fn render(app: &mut App, frame: &mut Frame) {
                             .borders(Borders::ALL)
                             .style(network_style),
                     ),
-                lower_area[1],
+                lower_right,
             );
 
             let scrollbar = Scrollbar::new(ScrollbarOrientation::VerticalRight)
@@ -473,7 +488,7 @@ pub fn render(app: &mut App, frame: &mut Frame) {
                 .end_symbol(Some("↓"));
             frame.render_stateful_widget(
                 scrollbar,
-                lower_area[0].inner(Margin {
+                lower_left.inner(Margin {
                     vertical: 1,
                     horizontal: 0,
                 }),
@@ -484,7 +499,7 @@ pub fn render(app: &mut App, frame: &mut Frame) {
                 .end_symbol(Some("↓"));
             frame.render_stateful_widget(
                 scrollbar,
-                lower_area[1].inner(Margin {
+                lower_right.inner(Margin {
                     vertical: 1,
                     horizontal: 0,
                 }),
@@ -500,10 +515,10 @@ pub fn render(app: &mut App, frame: &mut Frame) {
                             .borders(Borders::ALL)
                             .style(label_style),
                     ),
-                upper_area[0],
+                upper_left,
             );
             frame.render_widget(
-                Paragraph::new("volumes here")
+                Paragraph::new(volumes.join("\n"))
                     .scroll((app.alternate_screen.upper_right_scroll as _, 0))
                     .block(
                         Block::default()
@@ -511,14 +526,14 @@ pub fn render(app: &mut App, frame: &mut Frame) {
                             .borders(Borders::ALL)
                             .style(volume_style),
                     ),
-                upper_area[1],
+                upper_right,
             );
             let scrollbar = Scrollbar::new(ScrollbarOrientation::VerticalRight)
                 .begin_symbol(Some("↑"))
                 .end_symbol(Some("↓"));
             frame.render_stateful_widget(
                 scrollbar,
-                upper_area[1].inner(Margin {
+                upper_right.inner(Margin {
                     vertical: 1,
                     horizontal: 0,
                 }),
@@ -529,11 +544,20 @@ pub fn render(app: &mut App, frame: &mut Frame) {
                 .end_symbol(Some("↓"));
             frame.render_stateful_widget(
                 scrollbar,
-                upper_area[0].inner(Margin {
+                upper_left.inner(Margin {
                     vertical: 1,
                     horizontal: 0,
                 }),
                 &mut app.alternate_screen.upper_left_scroll_state,
+            );
+            frame.render_widget(
+                Paragraph::new("TODO: info there").block(
+                    Block::default()
+                        .title("Container details")
+                        .borders(Borders::ALL)
+                        .style(Style::default().bg(Color::Black).fg(Color::LightBlue)),
+                ),
+                header_and_main[0],
             );
             return;
         }

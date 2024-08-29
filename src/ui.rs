@@ -13,6 +13,7 @@ use ratatui_macros::vertical;
 
 use crate::{
     app::{App, DockerModifier},
+    handler::FullScreenContent,
     utils::shorten_path,
 };
 
@@ -58,7 +59,7 @@ fn create_help<'a>() -> Paragraph<'a> {
                 .add_modifier(Modifier::BOLD)
                 .fg(Color::Magenta),
         ),
-        Span::raw(" restart container"),
+        Span::raw(" restart selected"),
     ]);
 
     let navigation = Line::default().spans(vec![
@@ -136,7 +137,7 @@ fn create_help<'a>() -> Paragraph<'a> {
     )
 }
 
-fn create_legend<'a>(app: &'a App) -> Paragraph<'a> {
+fn create_legend(app: &App) -> Paragraph<'_> {
     let content = Line::from(vec![
         Span::raw("Project name: "),
         Span::styled(
@@ -147,7 +148,7 @@ fn create_legend<'a>(app: &'a App) -> Paragraph<'a> {
         ),
         Span::raw(" Project file: "),
         Span::styled(
-            shorten_path(&app.full_path.as_path())
+            shorten_path(app.full_path.as_path())
                 .to_string_lossy()
                 .into_owned(),
             Style::default()
@@ -268,6 +269,7 @@ fn create_container_info(app: &mut App) -> impl Widget + '_ {
         );
     };
     let value_style = Style::default().fg(Color::LightYellow);
+
     let name = container_info.name.as_deref().unwrap_or_default();
 
     let created = container_info.created.as_deref().unwrap_or_default();
@@ -315,12 +317,72 @@ pub fn render(app: &mut App, frame: &mut Frame) {
         frame.render_widget(ResizeScreen::new(), frame.area());
         return;
     }
+    match app.full_screen_content {
+        FullScreenContent::Help => {
+            let [_, inner_area, _] = vertical![>=0, <=5, >=0].areas(frame.area());
+            frame.render_widget(create_help(), inner_area);
+            return;
+        }
+        FullScreenContent::Env => {
+            // TODO: clean this up. Also, what about a Tab widget?
+            let selected = app.compose_content.state.selected().unwrap();
+            let Some(Some(container_info)) = app.container_info.get(&selected) else {
+                let name = app.container_name_mapping.get(&selected).expect("to exist");
+                frame.render_widget(
+                    Paragraph::new(Line::default().spans(vec![
+                        Span::raw("We don't know anything interesting about "),
+                        Span::styled(name, Style::default().fg(Color::Red)),
+                        Span::raw(" yet.. Have you tried starting it?"),
+                    ]))
+                    .block(
+                        Block::default()
+                            .borders(Borders::ALL)
+                            .style(Style::default().fg(Color::LightBlue).bg(Color::Black)),
+                    ),
+                    frame.area(),
+                );
+                return;
+            };
+            let env = container_info
+                .config
+                .as_ref()
+                .and_then(|cfg| cfg.env.as_deref())
+                .unwrap_or_default();
 
-    if app.show_help {
-        let [_, inner_area, _] = vertical![>=0, <=5, >=0].areas(frame.area());
+            let labels = container_info
+                .config
+                .as_ref()
+                .and_then(|cfg| cfg.labels.clone())
+                .unwrap_or_default();
 
-        frame.render_widget(create_help(), inner_area);
-        return;
+            let labels_formatted: Vec<_> = labels
+                .into_iter()
+                .map(|(name, value)| format!("{}: {}", name, value))
+                .collect();
+
+            let [upper_area, lower_area] = vertical![>=0, <=10].areas(frame.area());
+
+            frame.render_widget(
+                Paragraph::new(env.join("\n")).block(
+                    Block::default()
+                        .title("Environment variables")
+                        .borders(Borders::ALL)
+                        .style(Style::default().fg(Color::LightBlue).bg(Color::Black)),
+                ),
+                lower_area,
+            );
+            frame.render_widget(
+                Paragraph::new(labels_formatted.join("\n")).block(
+                    Block::default()
+                        .title("Labels")
+                        .borders(Borders::ALL)
+                        .style(Style::default().fg(Color::LightBlue).bg(Color::Black)),
+                ),
+                upper_area,
+            );
+            return;
+        }
+        FullScreenContent::None => {}
     }
 
     let main_and_legend = Layout::default()
@@ -521,6 +583,12 @@ const MIN_COLS: u16 = 100;
 pub struct ResizeScreen {
     pub min_height: u16,
     pub min_width: u16,
+}
+
+impl Default for ResizeScreen {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl ResizeScreen {

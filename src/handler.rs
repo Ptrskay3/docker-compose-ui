@@ -13,6 +13,13 @@ pub enum QueueType {
     Start,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum FullScreenContent {
+    Help,
+    Env,
+    None,
+}
+
 /// Handles the key events and updates the state of [`App`].
 pub async fn handle_key_events(
     key_event: KeyEvent,
@@ -22,11 +29,17 @@ pub async fn handle_key_events(
     match key_event.code {
         // Exit application on `ESC` or `q`
         KeyCode::Esc | KeyCode::Char('q') => {
-            // Help sits on top of everything, so just exit and don't do anything else then.
-            if app.show_help {
-                app.show_help = false;
-                return Ok(());
-            }
+            match app.full_screen_content {
+                FullScreenContent::Help => {
+                    app.full_screen_content = FullScreenContent::None;
+                    return Ok(());
+                }
+                FullScreenContent::Env => {
+                    app.full_screen_content = FullScreenContent::None;
+                    return Ok(());
+                }
+                e => e,
+            };
             if app.show_popup {
                 app.show_popup = false;
                 app.reset_popup_scroll();
@@ -60,10 +73,17 @@ pub async fn handle_key_events(
         }
 
         KeyCode::Enter => {
-            if app.show_help {
-                app.show_help = false;
-                return Ok(());
-            }
+            match app.full_screen_content {
+                FullScreenContent::Help => {
+                    app.full_screen_content = FullScreenContent::None;
+                    return Ok(());
+                }
+                FullScreenContent::Env => {
+                    app.full_screen_content = FullScreenContent::None;
+                    return Ok(());
+                }
+                e => e,
+            };
             if app.show_popup {
                 app.show_popup = false;
                 app.reset_popup_scroll();
@@ -195,7 +215,21 @@ pub async fn handle_key_events(
             app.clear_current_log();
             app.wipe(true, tx.clone()).await?;
         }
-        KeyCode::Char('h') => app.show_help = !app.show_help,
+        KeyCode::Char('h') => {
+            if app.full_screen_content != FullScreenContent::Help {
+                app.full_screen_content = FullScreenContent::Help;
+            } else {
+                app.full_screen_content = FullScreenContent::None;
+            }
+        }
+        KeyCode::Char('e') => {
+            if app.full_screen_content != FullScreenContent::Env {
+                app.full_screen_content = FullScreenContent::Env;
+            } else {
+                app.full_screen_content = FullScreenContent::None;
+            }
+        }
+
         _ => {}
     }
     Ok(())

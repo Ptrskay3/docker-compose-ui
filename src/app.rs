@@ -19,7 +19,7 @@ use tokio::{sync::mpsc::Sender, task::JoinHandle};
 use ratatui::widgets::{ListState, ScrollbarState};
 use tokio::process::{Child, Command};
 
-use crate::handler::{DockerEvent, QueueType};
+use crate::handler::{DockerEvent, FullScreenContent, QueueType};
 
 bitflags::bitflags! {
     #[derive(Copy, Clone, PartialEq, Eq, Debug)]
@@ -74,8 +74,8 @@ pub struct App {
     pub container_name_mapping: IndexMap<usize, String>,
     pub container_info: IndexMap<usize, Option<ContainerInspectResponse>>,
     pub full_path: std::path::PathBuf,
-    pub show_help: bool,
     pub docker_version: String,
+    pub full_screen_content: FullScreenContent,
 }
 
 #[derive(Debug, Clone)]
@@ -215,8 +215,8 @@ impl App {
             popup_scroll_state: ScrollbarState::default(),
             container_info: IndexMap::new(),
             full_path: full_path.as_ref().to_path_buf(),
-            show_help: false,
             docker_version,
+            full_screen_content: FullScreenContent::None,
         }
     }
 

@@ -76,6 +76,33 @@ pub struct App {
     pub full_path: std::path::PathBuf,
     pub docker_version: String,
     pub full_screen_content: FullScreenContent,
+    pub alternate_screen: AlternateScreen,
+}
+
+#[derive(Debug)]
+pub struct AlternateScreen {
+    pub upper_scroll_state: ScrollbarState,
+    pub upper_scroll: usize,
+    pub lower_scroll_state: ScrollbarState,
+    pub lower_scroll: usize,
+}
+
+impl AlternateScreen {
+    pub fn new() -> Self {
+        Self {
+            upper_scroll_state: ScrollbarState::default(),
+            upper_scroll: 0,
+            lower_scroll_state: ScrollbarState::default(),
+            lower_scroll: 0,
+        }
+    }
+
+    pub fn reset_scrolls(&mut self) {
+        self.upper_scroll = 0;
+        self.upper_scroll_state = self.upper_scroll_state.position(0);
+        self.lower_scroll = 0;
+        self.lower_scroll_state = self.lower_scroll_state.position(0);
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -217,6 +244,7 @@ impl App {
             full_path: full_path.as_ref().to_path_buf(),
             docker_version,
             full_screen_content: FullScreenContent::None,
+            alternate_screen: AlternateScreen::new(),
         }
     }
 
@@ -239,6 +267,7 @@ impl App {
     pub fn reset_scroll(&mut self) {
         self.vertical_scroll = 0;
         self.vertical_scroll_state = self.vertical_scroll_state.position(0);
+        self.alternate_screen.reset_scrolls();
     }
 
     pub fn reset_popup_scroll(&mut self) {

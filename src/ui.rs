@@ -75,14 +75,14 @@ fn create_help<'a>() -> Paragraph<'a> {
                 .add_modifier(Modifier::BOLD)
                 .fg(Color::Magenta),
         ),
-        Span::raw("scroll logs up, "),
+        Span::raw("scroll up, "),
         Span::styled(
             "(Mouse scroll down/PageDown/k) ",
             Style::default()
                 .add_modifier(Modifier::BOLD)
                 .fg(Color::Magenta),
         ),
-        Span::raw("scroll logs down, "),
+        Span::raw("scroll down, "),
         Span::styled(
             "↓ / ↑ (shift + ↓) / (shift + ↑) ",
             Style::default()
@@ -90,6 +90,20 @@ fn create_help<'a>() -> Paragraph<'a> {
                 .fg(Color::Magenta),
         ),
         Span::raw("navigate container list (jump to first / last), "),
+        Span::styled(
+            "(e) ",
+            Style::default()
+                .add_modifier(Modifier::BOLD)
+                .fg(Color::Magenta),
+        ),
+        Span::raw("enter alternate screen, "),
+        Span::styled(
+            "(tab)",
+            Style::default()
+                .add_modifier(Modifier::BOLD)
+                .fg(Color::Magenta),
+        ),
+        Span::raw(" move focus on alternate screen"),
     ]);
 
     let bottom_line = Line::default().spans(vec![
@@ -323,7 +337,7 @@ pub fn render(app: &mut App, frame: &mut Frame) {
             frame.render_widget(create_help(), inner_area);
             return;
         }
-        FullScreenContent::Env => {
+        FullScreenContent::Env(i) => {
             // TODO: clean this up. Also, what about a Tab widget?
             let selected = app.compose_content.state.selected().unwrap();
             let Some(Some(container_info)) = app.container_info.get(&selected) else {
@@ -362,23 +376,72 @@ pub fn render(app: &mut App, frame: &mut Frame) {
 
             let [upper_area, lower_area] = vertical![>=0, <=10].areas(frame.area());
 
+            let style_selected = Style::default().fg(Color::Red).bg(Color::Black);
+            let style_not_selected = Style::default().fg(Color::LightBlue).bg(Color::Black);
+            let (env_style, label_style) = if i == 0 {
+                (style_not_selected, style_selected)
+            } else {
+                (style_selected, style_not_selected)
+            };
+
+            app.alternate_screen.lower_scroll_state = app
+                .alternate_screen
+                .lower_scroll_state
+                .viewport_content_length(20)
+                .content_length(env.len());
+
+            app.alternate_screen.upper_scroll_state = app
+                .alternate_screen
+                .upper_scroll_state
+                .viewport_content_length(20)
+                .content_length(labels_formatted.len());
+
+            // TODO: Coloring of env vars
             frame.render_widget(
-                Paragraph::new(env.join("\n")).block(
-                    Block::default()
-                        .title("Environment variables")
-                        .borders(Borders::ALL)
-                        .style(Style::default().fg(Color::LightBlue).bg(Color::Black)),
-                ),
+                Paragraph::new(env.join("\n"))
+                    .scroll((app.alternate_screen.lower_scroll as _, 0))
+                    .block(
+                        Block::default()
+                            .title("Environment variables")
+                            .borders(Borders::ALL)
+                            .style(env_style),
+                    ),
                 lower_area,
             );
+
+            let scrollbar = Scrollbar::new(ScrollbarOrientation::VerticalRight)
+                .begin_symbol(Some("↑"))
+                .end_symbol(Some("↓"));
+            frame.render_stateful_widget(
+                scrollbar,
+                lower_area.inner(Margin {
+                    vertical: 1,
+                    horizontal: 0,
+                }),
+                &mut app.alternate_screen.lower_scroll_state,
+            );
+
             frame.render_widget(
-                Paragraph::new(labels_formatted.join("\n")).block(
-                    Block::default()
-                        .title("Labels")
-                        .borders(Borders::ALL)
-                        .style(Style::default().fg(Color::LightBlue).bg(Color::Black)),
-                ),
+                Paragraph::new(labels_formatted.join("\n"))
+                    .scroll((app.alternate_screen.upper_scroll as _, 0))
+                    .block(
+                        Block::default()
+                            .title("Labels")
+                            .borders(Borders::ALL)
+                            .style(label_style),
+                    ),
                 upper_area,
+            );
+            let scrollbar = Scrollbar::new(ScrollbarOrientation::VerticalRight)
+                .begin_symbol(Some("↑"))
+                .end_symbol(Some("↓"));
+            frame.render_stateful_widget(
+                scrollbar,
+                upper_area.inner(Margin {
+                    vertical: 1,
+                    horizontal: 0,
+                }),
+                &mut app.alternate_screen.upper_scroll_state,
             );
             return;
         }

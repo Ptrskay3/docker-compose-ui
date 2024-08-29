@@ -16,7 +16,7 @@ pub enum QueueType {
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum FullScreenContent {
     Help,
-    Env,
+    Env(usize),
     None,
 }
 
@@ -34,7 +34,7 @@ pub async fn handle_key_events(
                     app.full_screen_content = FullScreenContent::None;
                     return Ok(());
                 }
-                FullScreenContent::Env => {
+                FullScreenContent::Env(_) => {
                     app.full_screen_content = FullScreenContent::None;
                     return Ok(());
                 }
@@ -78,7 +78,7 @@ pub async fn handle_key_events(
                     app.full_screen_content = FullScreenContent::None;
                     return Ok(());
                 }
-                FullScreenContent::Env => {
+                FullScreenContent::Env(_) => {
                     app.full_screen_content = FullScreenContent::None;
                     return Ok(());
                 }
@@ -189,6 +189,26 @@ pub async fn handle_key_events(
             if app.show_popup {
                 app.popup_scroll = app.popup_scroll.saturating_sub(1);
                 app.popup_scroll_state = app.popup_scroll_state.position(app.popup_scroll);
+            } else if let FullScreenContent::Env(i) = app.full_screen_content {
+                match i {
+                    0 => {
+                        app.alternate_screen.upper_scroll =
+                            app.alternate_screen.upper_scroll.saturating_sub(1);
+                        app.alternate_screen.upper_scroll_state = app
+                            .alternate_screen
+                            .upper_scroll_state
+                            .position(app.alternate_screen.upper_scroll);
+                    }
+                    1 => {
+                        app.alternate_screen.lower_scroll =
+                            app.alternate_screen.lower_scroll.saturating_sub(1);
+                        app.alternate_screen.lower_scroll_state = app
+                            .alternate_screen
+                            .lower_scroll_state
+                            .position(app.alternate_screen.lower_scroll);
+                    }
+                    _ => {}
+                }
             } else {
                 app.vertical_scroll = app.vertical_scroll.saturating_sub(1);
                 app.vertical_scroll_state = app.vertical_scroll_state.position(app.vertical_scroll);
@@ -199,6 +219,26 @@ pub async fn handle_key_events(
             if app.show_popup {
                 app.popup_scroll = app.popup_scroll.saturating_add(1);
                 app.popup_scroll_state = app.popup_scroll_state.position(app.popup_scroll);
+            } else if let FullScreenContent::Env(i) = app.full_screen_content {
+                match i {
+                    0 => {
+                        app.alternate_screen.upper_scroll =
+                            app.alternate_screen.upper_scroll.saturating_add(1);
+                        app.alternate_screen.upper_scroll_state = app
+                            .alternate_screen
+                            .upper_scroll_state
+                            .position(app.alternate_screen.upper_scroll);
+                    }
+                    1 => {
+                        app.alternate_screen.lower_scroll =
+                            app.alternate_screen.lower_scroll.saturating_add(1);
+                        app.alternate_screen.lower_scroll_state = app
+                            .alternate_screen
+                            .lower_scroll_state
+                            .position(app.alternate_screen.lower_scroll);
+                    }
+                    _ => {}
+                }
             } else {
                 app.vertical_scroll = app.vertical_scroll.saturating_add(1);
                 app.vertical_scroll_state = app.vertical_scroll_state.position(app.vertical_scroll);
@@ -223,12 +263,23 @@ pub async fn handle_key_events(
             }
         }
         KeyCode::Char('e') => {
-            if app.full_screen_content != FullScreenContent::Env {
-                app.full_screen_content = FullScreenContent::Env;
+            if !matches!(app.full_screen_content, FullScreenContent::Env(_)) {
+                app.full_screen_content = FullScreenContent::Env(0);
             } else {
                 app.full_screen_content = FullScreenContent::None;
             }
         }
+
+        KeyCode::Tab => match app.full_screen_content {
+            // TODO: implement this better
+            FullScreenContent::Env(0) => {
+                app.full_screen_content = FullScreenContent::Env(1);
+            }
+            FullScreenContent::Env(1) => {
+                app.full_screen_content = FullScreenContent::Env(0);
+            }
+            _ => {}
+        },
 
         _ => {}
     }

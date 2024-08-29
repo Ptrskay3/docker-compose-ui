@@ -81,27 +81,39 @@ pub struct App {
 
 #[derive(Debug)]
 pub struct AlternateScreen {
-    pub upper_scroll_state: ScrollbarState,
-    pub upper_scroll: usize,
-    pub lower_scroll_state: ScrollbarState,
-    pub lower_scroll: usize,
+    pub upper_left_scroll_state: ScrollbarState,
+    pub upper_left_scroll: usize,
+    pub upper_right_scroll_state: ScrollbarState,
+    pub upper_right_scroll: usize,
+    pub lower_left_scroll_state: ScrollbarState,
+    pub lower_left_scroll: usize,
+    pub lower_right_scroll_state: ScrollbarState,
+    pub lower_right_scroll: usize,
 }
 
 impl AlternateScreen {
     pub fn new() -> Self {
         Self {
-            upper_scroll_state: ScrollbarState::default(),
-            upper_scroll: 0,
-            lower_scroll_state: ScrollbarState::default(),
-            lower_scroll: 0,
+            upper_left_scroll: 0,
+            upper_left_scroll_state: ScrollbarState::default(),
+            upper_right_scroll: 0,
+            upper_right_scroll_state: ScrollbarState::default(),
+            lower_left_scroll: 0,
+            lower_left_scroll_state: ScrollbarState::default(),
+            lower_right_scroll: 0,
+            lower_right_scroll_state: ScrollbarState::default(),
         }
     }
 
     pub fn reset_scrolls(&mut self) {
-        self.upper_scroll = 0;
-        self.upper_scroll_state = self.upper_scroll_state.position(0);
-        self.lower_scroll = 0;
-        self.lower_scroll_state = self.lower_scroll_state.position(0);
+        self.upper_left_scroll = 0;
+        self.upper_left_scroll_state = self.upper_left_scroll_state.position(0);
+        self.upper_right_scroll = 0;
+        self.upper_right_scroll_state = self.upper_right_scroll_state.position(0);
+        self.lower_left_scroll = 0;
+        self.lower_left_scroll_state = self.lower_left_scroll_state.position(0);
+        self.lower_right_scroll = 0;
+        self.lower_right_scroll_state = self.lower_right_scroll_state.position(0);
     }
 }
 

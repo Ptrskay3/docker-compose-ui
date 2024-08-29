@@ -16,8 +16,27 @@ pub enum QueueType {
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum FullScreenContent {
     Help,
-    Env(usize),
+    Env(SplitScreen),
     None,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum SplitScreen {
+    UpperLeft,
+    LowerLeft,
+    UpperRight,
+    LowerRight,
+}
+
+impl SplitScreen {
+    fn transition(self) -> Self {
+        match self {
+            SplitScreen::UpperLeft => SplitScreen::LowerLeft,
+            SplitScreen::LowerLeft => SplitScreen::UpperRight,
+            SplitScreen::UpperRight => SplitScreen::LowerRight,
+            SplitScreen::LowerRight => SplitScreen::UpperLeft,
+        }
+    }
 }
 
 /// Handles the key events and updates the state of [`App`].
@@ -208,19 +227,15 @@ pub async fn handle_key_events(
         }
         KeyCode::Char('e') => {
             if !matches!(app.full_screen_content, FullScreenContent::Env(_)) {
-                app.full_screen_content = FullScreenContent::Env(0);
+                app.full_screen_content = FullScreenContent::Env(SplitScreen::UpperLeft);
             } else {
                 app.full_screen_content = FullScreenContent::None;
             }
         }
 
         KeyCode::Tab => match app.full_screen_content {
-            // TODO: implement this better
-            FullScreenContent::Env(0) => {
-                app.full_screen_content = FullScreenContent::Env(1);
-            }
-            FullScreenContent::Env(1) => {
-                app.full_screen_content = FullScreenContent::Env(0);
+            FullScreenContent::Env(state) => {
+                app.full_screen_content = FullScreenContent::Env(state.transition());
             }
             _ => {}
         },
@@ -247,25 +262,40 @@ fn scroll_up(app: &mut App) {
     if app.show_popup {
         app.popup_scroll = app.popup_scroll.saturating_sub(5);
         app.popup_scroll_state = app.popup_scroll_state.position(app.popup_scroll);
-    } else if let FullScreenContent::Env(i) = app.full_screen_content {
-        match i {
-            0 => {
-                app.alternate_screen.upper_scroll =
-                    app.alternate_screen.upper_scroll.saturating_sub(1);
-                app.alternate_screen.upper_scroll_state = app
+    } else if let FullScreenContent::Env(split_screen) = app.full_screen_content {
+        match split_screen {
+            SplitScreen::UpperLeft => {
+                app.alternate_screen.upper_left_scroll =
+                    app.alternate_screen.upper_left_scroll.saturating_sub(1);
+                app.alternate_screen.upper_left_scroll_state = app
                     .alternate_screen
-                    .upper_scroll_state
-                    .position(app.alternate_screen.upper_scroll);
+                    .upper_left_scroll_state
+                    .position(app.alternate_screen.upper_left_scroll);
             }
-            1 => {
-                app.alternate_screen.lower_scroll =
-                    app.alternate_screen.lower_scroll.saturating_sub(1);
-                app.alternate_screen.lower_scroll_state = app
+            SplitScreen::LowerLeft => {
+                app.alternate_screen.lower_left_scroll =
+                    app.alternate_screen.lower_left_scroll.saturating_sub(1);
+                app.alternate_screen.lower_left_scroll_state = app
                     .alternate_screen
-                    .lower_scroll_state
-                    .position(app.alternate_screen.lower_scroll);
+                    .lower_left_scroll_state
+                    .position(app.alternate_screen.lower_left_scroll);
             }
-            _ => {}
+            SplitScreen::UpperRight => {
+                app.alternate_screen.upper_right_scroll =
+                    app.alternate_screen.upper_right_scroll.saturating_sub(1);
+                app.alternate_screen.upper_right_scroll_state = app
+                    .alternate_screen
+                    .upper_right_scroll_state
+                    .position(app.alternate_screen.upper_right_scroll);
+            }
+            SplitScreen::LowerRight => {
+                app.alternate_screen.lower_right_scroll =
+                    app.alternate_screen.lower_right_scroll.saturating_sub(1);
+                app.alternate_screen.lower_right_scroll_state = app
+                    .alternate_screen
+                    .lower_right_scroll_state
+                    .position(app.alternate_screen.lower_right_scroll);
+            }
         }
     } else {
         app.vertical_scroll = app.vertical_scroll.saturating_sub(5);
@@ -277,25 +307,40 @@ fn scroll_down(app: &mut App) {
     if app.show_popup {
         app.popup_scroll = app.popup_scroll.saturating_add(5);
         app.popup_scroll_state = app.popup_scroll_state.position(app.popup_scroll);
-    } else if let FullScreenContent::Env(i) = app.full_screen_content {
-        match i {
-            0 => {
-                app.alternate_screen.upper_scroll =
-                    app.alternate_screen.upper_scroll.saturating_add(1);
-                app.alternate_screen.upper_scroll_state = app
+    } else if let FullScreenContent::Env(split_screen) = app.full_screen_content {
+        match split_screen {
+            SplitScreen::UpperLeft => {
+                app.alternate_screen.upper_left_scroll =
+                    app.alternate_screen.upper_left_scroll.saturating_add(1);
+                app.alternate_screen.upper_left_scroll_state = app
                     .alternate_screen
-                    .upper_scroll_state
-                    .position(app.alternate_screen.upper_scroll);
+                    .upper_left_scroll_state
+                    .position(app.alternate_screen.upper_left_scroll);
             }
-            1 => {
-                app.alternate_screen.lower_scroll =
-                    app.alternate_screen.lower_scroll.saturating_add(1);
-                app.alternate_screen.lower_scroll_state = app
+            SplitScreen::LowerLeft => {
+                app.alternate_screen.lower_left_scroll =
+                    app.alternate_screen.lower_left_scroll.saturating_add(1);
+                app.alternate_screen.lower_left_scroll_state = app
                     .alternate_screen
-                    .lower_scroll_state
-                    .position(app.alternate_screen.lower_scroll);
+                    .lower_left_scroll_state
+                    .position(app.alternate_screen.lower_left_scroll);
             }
-            _ => {}
+            SplitScreen::UpperRight => {
+                app.alternate_screen.upper_right_scroll =
+                    app.alternate_screen.upper_right_scroll.saturating_add(1);
+                app.alternate_screen.upper_right_scroll_state = app
+                    .alternate_screen
+                    .upper_right_scroll_state
+                    .position(app.alternate_screen.upper_right_scroll);
+            }
+            SplitScreen::LowerRight => {
+                app.alternate_screen.lower_right_scroll =
+                    app.alternate_screen.lower_right_scroll.saturating_add(1);
+                app.alternate_screen.lower_right_scroll_state = app
+                    .alternate_screen
+                    .lower_right_scroll_state
+                    .position(app.alternate_screen.lower_right_scroll);
+            }
         }
     } else {
         app.vertical_scroll = app.vertical_scroll.saturating_add(5);

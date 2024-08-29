@@ -13,7 +13,7 @@ use ratatui_macros::vertical;
 
 use crate::{
     app::{App, DockerModifier},
-    handler::FullScreenContent,
+    handler::{FullScreenContent, SplitScreen},
     utils::shorten_path,
 };
 
@@ -345,7 +345,7 @@ pub fn render(app: &mut App, frame: &mut Frame) {
             return;
         }
         FullScreenContent::Env(i) => {
-            // TODO: clean this up. Also, what about a Tab widget?
+            // TODO: clean this up.
             let selected = app.compose_content.state.selected().unwrap();
             let Some(Some(container_info)) = app.container_info.get(&selected) else {
                 let name = app.container_name_mapping.get(&selected).expect("to exist");
@@ -381,39 +381,91 @@ pub fn render(app: &mut App, frame: &mut Frame) {
                 .map(|(name, value)| format!("{}: {}", name, value))
                 .collect();
 
-            let [upper_area, lower_area] = vertical![>=0, <=10].areas(frame.area());
+            let [upper_area, lower_area] = vertical![== 50%, == 50%].areas(frame.area());
+
+            let upper_area = Layout::default()
+                .direction(Direction::Horizontal)
+                .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
+                .split(upper_area);
+            let lower_area = Layout::default()
+                .direction(Direction::Horizontal)
+                .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
+                .split(lower_area);
 
             let style_selected = Style::default().fg(Color::Red).bg(Color::Black);
             let style_not_selected = Style::default().fg(Color::LightBlue).bg(Color::Black);
-            let (env_style, label_style) = if i == 0 {
-                (style_not_selected, style_selected)
-            } else {
-                (style_selected, style_not_selected)
+            let (label_style, env_style, volume_style, network_style) = match i {
+                SplitScreen::UpperLeft => (
+                    style_selected,
+                    style_not_selected,
+                    style_not_selected,
+                    style_not_selected,
+                ),
+                SplitScreen::LowerLeft => (
+                    style_not_selected,
+                    style_selected,
+                    style_not_selected,
+                    style_not_selected,
+                ),
+                SplitScreen::UpperRight => (
+                    style_not_selected,
+                    style_not_selected,
+                    style_selected,
+                    style_not_selected,
+                ),
+                SplitScreen::LowerRight => (
+                    style_not_selected,
+                    style_not_selected,
+                    style_not_selected,
+                    style_selected,
+                ),
             };
 
-            app.alternate_screen.lower_scroll_state = app
+            app.alternate_screen.lower_left_scroll_state = app
                 .alternate_screen
-                .lower_scroll_state
+                .lower_left_scroll_state
                 .viewport_content_length(20)
                 .content_length(env.len());
 
-            app.alternate_screen.upper_scroll_state = app
+            app.alternate_screen.upper_left_scroll_state = app
                 .alternate_screen
-                .upper_scroll_state
+                .upper_left_scroll_state
                 .viewport_content_length(20)
                 .content_length(labels_formatted.len());
+
+            app.alternate_screen.lower_right_scroll_state = app
+                .alternate_screen
+                .lower_right_scroll_state
+                .viewport_content_length(20)
+                .content_length(20); // TODO
+            app.alternate_screen.upper_right_scroll_state = app
+                .alternate_screen
+                .upper_right_scroll_state
+                .viewport_content_length(20)
+                .content_length(20); // TODO
 
             // TODO: Coloring of env vars
             frame.render_widget(
                 Paragraph::new(env.join("\n"))
-                    .scroll((app.alternate_screen.lower_scroll as _, 0))
+                    .scroll((app.alternate_screen.lower_left_scroll as _, 0))
                     .block(
                         Block::default()
                             .title("Environment variables")
                             .borders(Borders::ALL)
                             .style(env_style),
                     ),
-                lower_area,
+                lower_area[0],
+            );
+            frame.render_widget(
+                Paragraph::new("networks here..")
+                    .scroll((app.alternate_screen.lower_right_scroll as _, 0))
+                    .block(
+                        Block::default()
+                            .title("Networks")
+                            .borders(Borders::ALL)
+                            .style(network_style),
+                    ),
+                lower_area[1],
             );
 
             let scrollbar = Scrollbar::new(ScrollbarOrientation::VerticalRight)
@@ -421,34 +473,67 @@ pub fn render(app: &mut App, frame: &mut Frame) {
                 .end_symbol(Some("↓"));
             frame.render_stateful_widget(
                 scrollbar,
-                lower_area.inner(Margin {
+                lower_area[0].inner(Margin {
                     vertical: 1,
                     horizontal: 0,
                 }),
-                &mut app.alternate_screen.lower_scroll_state,
+                &mut app.alternate_screen.lower_left_scroll_state,
+            );
+            let scrollbar = Scrollbar::new(ScrollbarOrientation::VerticalRight)
+                .begin_symbol(Some("↑"))
+                .end_symbol(Some("↓"));
+            frame.render_stateful_widget(
+                scrollbar,
+                lower_area[1].inner(Margin {
+                    vertical: 1,
+                    horizontal: 0,
+                }),
+                &mut app.alternate_screen.lower_right_scroll_state,
             );
 
             frame.render_widget(
                 Paragraph::new(labels_formatted.join("\n"))
-                    .scroll((app.alternate_screen.upper_scroll as _, 0))
+                    .scroll((app.alternate_screen.upper_left_scroll as _, 0))
                     .block(
                         Block::default()
                             .title("Labels")
                             .borders(Borders::ALL)
                             .style(label_style),
                     ),
-                upper_area,
+                upper_area[0],
+            );
+            frame.render_widget(
+                Paragraph::new("volumes here")
+                    .scroll((app.alternate_screen.upper_right_scroll as _, 0))
+                    .block(
+                        Block::default()
+                            .title("Volumes")
+                            .borders(Borders::ALL)
+                            .style(volume_style),
+                    ),
+                upper_area[1],
             );
             let scrollbar = Scrollbar::new(ScrollbarOrientation::VerticalRight)
                 .begin_symbol(Some("↑"))
                 .end_symbol(Some("↓"));
             frame.render_stateful_widget(
                 scrollbar,
-                upper_area.inner(Margin {
+                upper_area[1].inner(Margin {
                     vertical: 1,
                     horizontal: 0,
                 }),
-                &mut app.alternate_screen.upper_scroll_state,
+                &mut app.alternate_screen.upper_right_scroll_state,
+            );
+            let scrollbar = Scrollbar::new(ScrollbarOrientation::VerticalRight)
+                .begin_symbol(Some("↑"))
+                .end_symbol(Some("↓"));
+            frame.render_stateful_widget(
+                scrollbar,
+                upper_area[0].inner(Margin {
+                    vertical: 1,
+                    horizontal: 0,
+                }),
+                &mut app.alternate_screen.upper_left_scroll_state,
             );
             return;
         }

@@ -296,7 +296,27 @@ pub async fn handle_mouse_events(
             if app.show_popup {
                 app.popup_scroll = app.popup_scroll.saturating_sub(5);
                 app.popup_scroll_state = app.popup_scroll_state.position(app.popup_scroll);
-            } else {
+            } else if let FullScreenContent::Env(i) = app.full_screen_content {
+                match i {
+                    0 => {
+                        app.alternate_screen.upper_scroll =
+                            app.alternate_screen.upper_scroll.saturating_sub(1);
+                        app.alternate_screen.upper_scroll_state = app
+                            .alternate_screen
+                            .upper_scroll_state
+                            .position(app.alternate_screen.upper_scroll);
+                    }
+                    1 => {
+                        app.alternate_screen.lower_scroll =
+                            app.alternate_screen.lower_scroll.saturating_sub(1);
+                        app.alternate_screen.lower_scroll_state = app
+                            .alternate_screen
+                            .lower_scroll_state
+                            .position(app.alternate_screen.lower_scroll);
+                    }
+                    _ => {}
+                }
+            } else {    
                 app.vertical_scroll = app.vertical_scroll.saturating_sub(5);
                 app.vertical_scroll_state = app.vertical_scroll_state.position(app.vertical_scroll);
             }
@@ -305,6 +325,26 @@ pub async fn handle_mouse_events(
             if app.show_popup {
                 app.popup_scroll = app.popup_scroll.saturating_add(5);
                 app.popup_scroll_state = app.popup_scroll_state.position(app.popup_scroll);
+            } else if let FullScreenContent::Env(i) = app.full_screen_content {
+                match i {
+                    0 => {
+                        app.alternate_screen.upper_scroll =
+                            app.alternate_screen.upper_scroll.saturating_add(1);
+                        app.alternate_screen.upper_scroll_state = app
+                            .alternate_screen
+                            .upper_scroll_state
+                            .position(app.alternate_screen.upper_scroll);
+                    }
+                    1 => {
+                        app.alternate_screen.lower_scroll =
+                            app.alternate_screen.lower_scroll.saturating_add(1);
+                        app.alternate_screen.lower_scroll_state = app
+                            .alternate_screen
+                            .lower_scroll_state
+                            .position(app.alternate_screen.lower_scroll);
+                    }
+                    _ => {}
+                }
             } else {
                 app.vertical_scroll = app.vertical_scroll.saturating_add(5);
                 app.vertical_scroll_state = app.vertical_scroll_state.position(app.vertical_scroll);

@@ -333,7 +333,14 @@ pub fn render(app: &mut App, frame: &mut Frame) {
     }
     match app.full_screen_content {
         FullScreenContent::Help => {
-            let [_, inner_area, _] = vertical![>=0, <=5, >=0].areas(frame.area());
+            let [_, inner_area, _] = vertical![>=0, <=6, >=0].areas(frame.area());
+            frame.render_widget(
+                Block::default()
+                    .title("Help")
+                    .borders(Borders::ALL)
+                    .style(Style::default().fg(Color::LightBlue).bg(Color::Black)),
+                frame.area(),
+            );
             frame.render_widget(create_help(), inner_area);
             return;
         }

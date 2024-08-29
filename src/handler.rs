@@ -185,65 +185,9 @@ pub async fn handle_key_events(
             app.toggle_modifier(c);
         }
 
-        KeyCode::Char('j') | KeyCode::PageUp => {
-            if app.show_popup {
-                app.popup_scroll = app.popup_scroll.saturating_sub(1);
-                app.popup_scroll_state = app.popup_scroll_state.position(app.popup_scroll);
-            } else if let FullScreenContent::Env(i) = app.full_screen_content {
-                match i {
-                    0 => {
-                        app.alternate_screen.upper_scroll =
-                            app.alternate_screen.upper_scroll.saturating_sub(1);
-                        app.alternate_screen.upper_scroll_state = app
-                            .alternate_screen
-                            .upper_scroll_state
-                            .position(app.alternate_screen.upper_scroll);
-                    }
-                    1 => {
-                        app.alternate_screen.lower_scroll =
-                            app.alternate_screen.lower_scroll.saturating_sub(1);
-                        app.alternate_screen.lower_scroll_state = app
-                            .alternate_screen
-                            .lower_scroll_state
-                            .position(app.alternate_screen.lower_scroll);
-                    }
-                    _ => {}
-                }
-            } else {
-                app.vertical_scroll = app.vertical_scroll.saturating_sub(1);
-                app.vertical_scroll_state = app.vertical_scroll_state.position(app.vertical_scroll);
-            }
-        }
+        KeyCode::Char('j') | KeyCode::PageUp => scroll_up(app),
 
-        KeyCode::Char('k') | KeyCode::PageDown => {
-            if app.show_popup {
-                app.popup_scroll = app.popup_scroll.saturating_add(1);
-                app.popup_scroll_state = app.popup_scroll_state.position(app.popup_scroll);
-            } else if let FullScreenContent::Env(i) = app.full_screen_content {
-                match i {
-                    0 => {
-                        app.alternate_screen.upper_scroll =
-                            app.alternate_screen.upper_scroll.saturating_add(1);
-                        app.alternate_screen.upper_scroll_state = app
-                            .alternate_screen
-                            .upper_scroll_state
-                            .position(app.alternate_screen.upper_scroll);
-                    }
-                    1 => {
-                        app.alternate_screen.lower_scroll =
-                            app.alternate_screen.lower_scroll.saturating_add(1);
-                        app.alternate_screen.lower_scroll_state = app
-                            .alternate_screen
-                            .lower_scroll_state
-                            .position(app.alternate_screen.lower_scroll);
-                    }
-                    _ => {}
-                }
-            } else {
-                app.vertical_scroll = app.vertical_scroll.saturating_add(1);
-                app.vertical_scroll_state = app.vertical_scroll_state.position(app.vertical_scroll);
-            }
-        }
+        KeyCode::Char('k') | KeyCode::PageDown => scroll_down(app),
 
         KeyCode::Char('w') if key_event.modifiers == KeyModifiers::CONTROL => {
             app.clear_current_log();
@@ -292,65 +236,69 @@ pub async fn handle_mouse_events(
     _tx: Sender<DockerEvent>,
 ) -> AppResult<()> {
     match mouse_event.kind {
-        MouseEventKind::ScrollUp => {
-            if app.show_popup {
-                app.popup_scroll = app.popup_scroll.saturating_sub(5);
-                app.popup_scroll_state = app.popup_scroll_state.position(app.popup_scroll);
-            } else if let FullScreenContent::Env(i) = app.full_screen_content {
-                match i {
-                    0 => {
-                        app.alternate_screen.upper_scroll =
-                            app.alternate_screen.upper_scroll.saturating_sub(1);
-                        app.alternate_screen.upper_scroll_state = app
-                            .alternate_screen
-                            .upper_scroll_state
-                            .position(app.alternate_screen.upper_scroll);
-                    }
-                    1 => {
-                        app.alternate_screen.lower_scroll =
-                            app.alternate_screen.lower_scroll.saturating_sub(1);
-                        app.alternate_screen.lower_scroll_state = app
-                            .alternate_screen
-                            .lower_scroll_state
-                            .position(app.alternate_screen.lower_scroll);
-                    }
-                    _ => {}
-                }
-            } else {    
-                app.vertical_scroll = app.vertical_scroll.saturating_sub(5);
-                app.vertical_scroll_state = app.vertical_scroll_state.position(app.vertical_scroll);
-            }
-        }
-        MouseEventKind::ScrollDown => {
-            if app.show_popup {
-                app.popup_scroll = app.popup_scroll.saturating_add(5);
-                app.popup_scroll_state = app.popup_scroll_state.position(app.popup_scroll);
-            } else if let FullScreenContent::Env(i) = app.full_screen_content {
-                match i {
-                    0 => {
-                        app.alternate_screen.upper_scroll =
-                            app.alternate_screen.upper_scroll.saturating_add(1);
-                        app.alternate_screen.upper_scroll_state = app
-                            .alternate_screen
-                            .upper_scroll_state
-                            .position(app.alternate_screen.upper_scroll);
-                    }
-                    1 => {
-                        app.alternate_screen.lower_scroll =
-                            app.alternate_screen.lower_scroll.saturating_add(1);
-                        app.alternate_screen.lower_scroll_state = app
-                            .alternate_screen
-                            .lower_scroll_state
-                            .position(app.alternate_screen.lower_scroll);
-                    }
-                    _ => {}
-                }
-            } else {
-                app.vertical_scroll = app.vertical_scroll.saturating_add(5);
-                app.vertical_scroll_state = app.vertical_scroll_state.position(app.vertical_scroll);
-            }
-        }
+        MouseEventKind::ScrollUp => scroll_up(app),
+        MouseEventKind::ScrollDown => scroll_down(app),
         _ => {}
     }
     Ok(())
+}
+
+fn scroll_up(app: &mut App) {
+    if app.show_popup {
+        app.popup_scroll = app.popup_scroll.saturating_sub(5);
+        app.popup_scroll_state = app.popup_scroll_state.position(app.popup_scroll);
+    } else if let FullScreenContent::Env(i) = app.full_screen_content {
+        match i {
+            0 => {
+                app.alternate_screen.upper_scroll =
+                    app.alternate_screen.upper_scroll.saturating_sub(1);
+                app.alternate_screen.upper_scroll_state = app
+                    .alternate_screen
+                    .upper_scroll_state
+                    .position(app.alternate_screen.upper_scroll);
+            }
+            1 => {
+                app.alternate_screen.lower_scroll =
+                    app.alternate_screen.lower_scroll.saturating_sub(1);
+                app.alternate_screen.lower_scroll_state = app
+                    .alternate_screen
+                    .lower_scroll_state
+                    .position(app.alternate_screen.lower_scroll);
+            }
+            _ => {}
+        }
+    } else {
+        app.vertical_scroll = app.vertical_scroll.saturating_sub(5);
+        app.vertical_scroll_state = app.vertical_scroll_state.position(app.vertical_scroll);
+    }
+}
+
+fn scroll_down(app: &mut App) {
+    if app.show_popup {
+        app.popup_scroll = app.popup_scroll.saturating_add(5);
+        app.popup_scroll_state = app.popup_scroll_state.position(app.popup_scroll);
+    } else if let FullScreenContent::Env(i) = app.full_screen_content {
+        match i {
+            0 => {
+                app.alternate_screen.upper_scroll =
+                    app.alternate_screen.upper_scroll.saturating_add(1);
+                app.alternate_screen.upper_scroll_state = app
+                    .alternate_screen
+                    .upper_scroll_state
+                    .position(app.alternate_screen.upper_scroll);
+            }
+            1 => {
+                app.alternate_screen.lower_scroll =
+                    app.alternate_screen.lower_scroll.saturating_add(1);
+                app.alternate_screen.lower_scroll_state = app
+                    .alternate_screen
+                    .lower_scroll_state
+                    .position(app.alternate_screen.lower_scroll);
+            }
+            _ => {}
+        }
+    } else {
+        app.vertical_scroll = app.vertical_scroll.saturating_add(5);
+        app.vertical_scroll_state = app.vertical_scroll_state.position(app.vertical_scroll);
+    }
 }

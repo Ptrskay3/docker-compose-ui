@@ -77,6 +77,7 @@ pub struct App {
     pub docker_version: String,
     pub full_screen_content: FullScreenContent,
     pub alternate_screen: AlternateScreen,
+    pub services_len: usize,
 }
 
 #[derive(Debug)]
@@ -227,6 +228,7 @@ impl App {
         full_path: impl AsRef<std::path::Path>,
         docker_version: String,
     ) -> Self {
+        let services_len = compose.services.0.len();
         let mut state = ListState::default();
         state.select_first();
         Self {
@@ -257,6 +259,7 @@ impl App {
             docker_version,
             full_screen_content: FullScreenContent::None,
             alternate_screen: AlternateScreen::new(),
+            services_len,
         }
     }
 
@@ -347,7 +350,6 @@ impl App {
             .toggle(DockerModifier::from_bits_truncate(code));
     }
 
-    // TODO: we may wrap around: https://docs.rs/ratatui/latest/src/demo2/tabs/recipe.rs.html#105
     pub fn up(&mut self, _tx: Sender<DockerEvent>) {
         self.compose_content.state.select_previous();
     }
@@ -357,7 +359,17 @@ impl App {
     }
 
     pub fn down(&mut self, _tx: Sender<DockerEvent>) {
-        self.compose_content.state.select_next();
+        // The extra logic to stay at the last item if we are about to overflow.
+        // We may add a wrap-around feature in the future.
+        match self.compose_content.state.selected() {
+            Some(selected) if selected >= self.services_len.saturating_sub(1) => {
+                self.compose_content
+                    .state
+                    .select(Some(self.services_len.saturating_sub(1)));
+            }
+            Some(_) => self.compose_content.state.select_next(),
+            None => {}
+        }
     }
 
     pub fn down_last(&mut self, _tx: Sender<DockerEvent>) {

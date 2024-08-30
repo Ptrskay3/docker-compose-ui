@@ -82,10 +82,6 @@ pub async fn handle_key_events(
         }
 
         KeyCode::Up => {
-            // TODO: Enable stepping on alternate screen later
-            if !matches!(app.full_screen_content, FullScreenContent::None) {
-                return Ok(());
-            }
             if key_event.modifiers == KeyModifiers::SHIFT {
                 app.up_first(tx.clone());
                 return Ok(());
@@ -95,9 +91,6 @@ pub async fn handle_key_events(
         }
 
         KeyCode::Down => {
-            if !matches!(app.full_screen_content, FullScreenContent::None) {
-                return Ok(());
-            }
             if key_event.modifiers == KeyModifiers::SHIFT {
                 app.down_last(tx.clone());
                 return Ok(());

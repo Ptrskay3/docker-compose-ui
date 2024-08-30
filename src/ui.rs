@@ -436,7 +436,7 @@ pub fn render(app: &mut App, frame: &mut Frame) {
                                     ));
                                 }
                             } else {
-                                result.push(format!(" {port}",));
+                                result.push(format!(" {port}"));
                             }
                         });
                         result

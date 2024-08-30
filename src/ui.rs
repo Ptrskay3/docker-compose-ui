@@ -17,6 +17,9 @@ use crate::{
     utils::shorten_path,
 };
 
+const UNNAMED: &str = "<unnamed>";
+const UNSPECIFIED: &str = "<unspecified>";
+
 fn create_help<'a>() -> Paragraph<'a> {
     let text = Line::default().spans(vec![
         Span::styled(
@@ -113,6 +116,13 @@ fn create_help<'a>() -> Paragraph<'a> {
                 .add_modifier(Modifier::BOLD)
                 .fg(Color::Yellow),
         ),
+        Span::styled(
+            "(f)",
+            Style::default()
+                .add_modifier(Modifier::BOLD)
+                .fg(Color::Magenta),
+        ),
+        Span::raw(" force refresh, "),
         Span::styled(
             "(ctrl + l)",
             Style::default()
@@ -346,9 +356,9 @@ pub fn render(app: &mut App, frame: &mut Frame) {
         }
         FullScreenContent::Env(i) => {
             // TODO: clean this up.
-            let selected = app.compose_content.state.selected().unwrap();
+            let selected =
+                app.compose_content.state.selected().unwrap() % app.container_name_mapping.len();
             let Some(Some(container_info)) = app.container_info.get(&selected) else {
-                // TODO: This is crashing
                 let name = app.container_name_mapping.get(&selected).expect("to exist");
                 frame.render_widget(
                     Paragraph::new(Line::default().spans(vec![
@@ -388,13 +398,15 @@ pub fn render(app: &mut App, frame: &mut Frame) {
                 .map(|mounts| {
                     mounts
                         .iter()
-                        .map(|mount| {
+                        .enumerate()
+                        .map(|(i, mount)| {
                             format!(
-                                "name: {}\nsource: {}\ndestination: {}\ndriver: {}",
-                                mount.name.as_deref().unwrap_or_default(),
+                                "{}:\n name: {}\n source: {}\n destination: {}\n driver: {}",
+                                i + 1,
+                                mount.name.as_deref().unwrap_or(UNNAMED),
                                 mount.source.as_deref().unwrap_or_default(),
                                 mount.destination.as_deref().unwrap_or_default(),
-                                mount.driver.as_deref().unwrap_or_default(),
+                                mount.driver.as_deref().unwrap_or(UNSPECIFIED),
                             )
                         })
                         .collect::<Vec<_>>()
@@ -551,7 +563,14 @@ pub fn render(app: &mut App, frame: &mut Frame) {
                 &mut app.alternate_screen.upper_left_scroll_state,
             );
             frame.render_widget(
-                Paragraph::new("TODO: info there").block(
+                Paragraph::new(Line::from(vec![
+                    Span::raw("Looking at "),
+                    Span::styled(
+                        app.container_name_mapping.get(&selected).expect("to exist"),
+                        Style::default().fg(Color::Yellow),
+                    ),
+                ]))
+                .block(
                     Block::default()
                         .title("Container details")
                         .borders(Borders::ALL)

@@ -357,9 +357,11 @@ pub fn render(app: &mut App, frame: &mut Frame) {
         }
         FullScreenContent::Env(i) => {
             // TODO: clean this up.
-            // FIXME: This wraps around, but the main screen does not.
-            let selected =
-                app.compose_content.state.selected().unwrap() % app.container_name_mapping.len();
+            let selected = app
+                .compose_content
+                .state
+                .selected()
+                .expect("a valid selection");
             let Some(Some(container_info)) = app.container_info.get(&selected) else {
                 let name = app.container_name_mapping.get(&selected).expect("to exist");
                 frame.render_widget(
@@ -474,6 +476,7 @@ pub fn render(app: &mut App, frame: &mut Frame) {
                 })
                 .unwrap_or_default();
             networks.extend(network_settings);
+
             let header_and_main = Layout::default()
                 .direction(Direction::Vertical)
                 .constraints([Constraint::Length(3), Constraint::Min(1)])
@@ -533,9 +536,48 @@ pub fn render(app: &mut App, frame: &mut Frame) {
                 .viewport_content_length(20)
                 .content_length(volumes.len());
 
+            let networks = Text::from(
+                textwrap::wrap(
+                    &networks.join("\n"),
+                    textwrap::Options::new(lower_right.width.saturating_sub(2) as _),
+                )
+                .iter()
+                .map(|s| Line::from(s.to_string()))
+                .collect::<Vec<_>>(),
+            );
+            let labels_formatted = Text::from(
+                textwrap::wrap(
+                    &labels_formatted.join("\n"),
+                    textwrap::Options::new(upper_left.width.saturating_sub(2) as _),
+                )
+                .iter()
+                .map(|s| Line::from(s.to_string()))
+                .collect::<Vec<_>>(),
+            );
+
+            let volumes = Text::from(
+                textwrap::wrap(
+                    &volumes.join("\n"),
+                    textwrap::Options::new(upper_right.width.saturating_sub(2) as _),
+                )
+                .iter()
+                .map(|s| Line::from(s.to_string()))
+                .collect::<Vec<_>>(),
+            );
+
+            let env = Text::from(
+                textwrap::wrap(
+                    &env.join("\n"),
+                    textwrap::Options::new(lower_left.width.saturating_sub(2) as _),
+                )
+                .iter()
+                .map(|s| Line::from(s.to_string()))
+                .collect::<Vec<_>>(),
+            );
+
             // TODO: Coloring of env vars
             frame.render_widget(
-                Paragraph::new(env.join("\n"))
+                Paragraph::new(env)
                     .scroll((app.alternate_screen.lower_left_scroll as _, 0))
                     .block(
                         Block::default()
@@ -546,7 +588,7 @@ pub fn render(app: &mut App, frame: &mut Frame) {
                 lower_left,
             );
             frame.render_widget(
-                Paragraph::new(networks.join("\n"))
+                Paragraph::new(networks)
                     .scroll((app.alternate_screen.lower_right_scroll as _, 0))
                     .block(
                         Block::default()
@@ -581,7 +623,7 @@ pub fn render(app: &mut App, frame: &mut Frame) {
             );
 
             frame.render_widget(
-                Paragraph::new(labels_formatted.join("\n"))
+                Paragraph::new(labels_formatted)
                     .scroll((app.alternate_screen.upper_left_scroll as _, 0))
                     .block(
                         Block::default()
@@ -592,7 +634,7 @@ pub fn render(app: &mut App, frame: &mut Frame) {
                 upper_left,
             );
             frame.render_widget(
-                Paragraph::new(volumes.join("\n"))
+                Paragraph::new(volumes)
                     .scroll((app.alternate_screen.upper_right_scroll as _, 0))
                     .block(
                         Block::default()

@@ -3,16 +3,16 @@ use std::{
     path::{Component, Path, PathBuf},
 };
 
-// TODO: make this configurable at startup
-const MAX_PATH_CHARS: usize = 40;
+use crate::MAX_PATH_CHARS;
 
-/// Shortens a path by replacing all components up to the last two with the single starting character.
-/// Has no effect for paths with less than 40 characters (MAX_PATH_CHARS), or for paths that have 2 or less components.
+/// Shortens a path by replacing all components up to the last two with the single starting character and a dot.
+/// Leaves length 2 or shorter path components unchanged.
+/// Has no effect for paths with less than MAX_PATH_CHARS characters, or for paths that have 2 or less components.
 pub fn shorten_path(path: impl AsRef<Path>) -> PathBuf {
     let path = path.as_ref();
     let components = path.components();
     let count = components.clone().count();
-    if path.to_string_lossy().len() <= MAX_PATH_CHARS || count <= 2 {
+    if path.to_string_lossy().len() <= *MAX_PATH_CHARS.get().unwrap() || count <= 2 {
         return path.to_path_buf();
     }
     components

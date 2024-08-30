@@ -6,6 +6,7 @@ use dcr::app::App;
 use dcr::event::{Event, EventHandler};
 use dcr::handler::{handle_key_events, handle_mouse_events, DockerEvent};
 use dcr::tui::Tui;
+use dcr::MAX_PATH_CHARS;
 use docker_compose_types::Compose;
 use indexmap::IndexMap;
 use ratatui::backend::CrosstermBackend;
@@ -19,6 +20,9 @@ use std::path::Path;
 struct Args {
     #[arg(default_value_t = String::from("docker-compose.yml"))]
     compose_file: String,
+
+    #[arg(short, long)]
+    max_path_len: Option<usize>,
 }
 
 #[tokio::main]
@@ -46,8 +50,11 @@ async fn main() -> anyhow::Result<()> {
         .map(|name| name.trim_start_matches("/").into())
         .collect::<Vec<String>>();
 
-    let Args { compose_file: file } = Args::parse();
-
+    let Args {
+        compose_file: file,
+        max_path_len,
+    } = Args::parse();
+    MAX_PATH_CHARS.set(max_path_len.unwrap_or(40)).unwrap();
     let file_payload =
         std::fs::read_to_string(&file).with_context(|| format!("file '{file}' not found"))?;
     let compose_content = match serde_yaml::from_str::<Compose>(&file_payload) {

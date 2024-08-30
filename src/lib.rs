@@ -1,3 +1,5 @@
+use std::sync::OnceLock;
+
 /// Application.
 pub mod app;
 
@@ -15,3 +17,5 @@ pub mod handler;
 
 pub mod text_wrap;
 pub mod utils;
+
+pub static MAX_PATH_CHARS: OnceLock<usize> = OnceLock::new();

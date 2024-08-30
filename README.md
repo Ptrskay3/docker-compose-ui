@@ -10,3 +10,4 @@ TODO:
 - [ ] > Add an info panel for containers with CPU, memory, volumes, networks, etc.
 - [ ] Rework the Keys section because it looks horrible (wrap around!)
 - [ ] cleanup
+- [ ] enable Up/Down on alternate screen (currently it's weird because the not rendered list should manage the state of it..)

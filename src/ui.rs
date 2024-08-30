@@ -19,6 +19,7 @@ use crate::{
 
 const UNNAMED: &str = "<unnamed>";
 const UNSPECIFIED: &str = "<unspecified>";
+const ALL_INTERFACES: &str = "0.0.0.0";
 
 fn create_help<'a>() -> Paragraph<'a> {
     let text = Line::default().spans(vec![
@@ -414,17 +415,65 @@ pub fn render(app: &mut App, frame: &mut Frame) {
                 })
                 .unwrap_or_default();
 
-            let networks = container_info
-                .config
+            let mut networks = container_info
+                .host_config
                 .as_ref()
                 .and_then(|cfg| {
-                    cfg.exposed_ports.as_ref().map(|ports| {
-                        let mut result = vec![String::from("Exposed ports:")];
-                        result.extend(ports.keys().map(|port| format!(" {port}")));
+                    cfg.port_bindings.as_ref().map(|ports| {
+                        let mut result = vec![String::from("Port bindings:")];
+                        ports.iter().for_each(|(port, bindings)| {
+                            if let Some(bindings) = bindings {
+                                for binding in bindings.iter() {
+                                    let host_ip = match binding.host_ip.as_deref() {
+                                        Some("") | None => ALL_INTERFACES,
+                                        Some(ip) => ip,
+                                    };
+
+                                    result.push(format!(
+                                        " {port} -> {}:{}",
+                                        host_ip,
+                                        binding.host_port.as_deref().unwrap_or_default()
+                                    ));
+                                }
+                            } else {
+                                result.push(format!(" {port}",));
+                            }
+                        });
                         result
                     })
                 })
                 .unwrap_or_default();
+
+            let network_settings = container_info
+                .network_settings
+                .as_ref()
+                .map(|settings| {
+                    let mut result = vec![String::from("Network descriptions:")];
+                    let network_descriptions = settings.networks.iter().flat_map(|network| {
+                        network
+                            .iter()
+                            .enumerate()
+                            .map(|(i, (name, endpoint))| {
+                                format!(
+                                    " {}:\n  name: {}\n  ipv4_address: {}\n  id: {}\n",
+                                    i + 1,
+                                    name,
+                                    endpoint
+                                        .ipam_config
+                                        .as_ref()
+                                        .and_then(|i| i.ipv4_address.as_deref())
+                                        .unwrap_or(UNSPECIFIED),
+                                    endpoint.network_id.as_deref().unwrap_or(UNSPECIFIED),
+                                )
+                            })
+                            .collect::<Vec<_>>()
+                    });
+
+                    result.extend(network_descriptions);
+                    result
+                })
+                .unwrap_or_default();
+            networks.extend(network_settings);
             let header_and_main = Layout::default()
                 .direction(Direction::Vertical)
                 .constraints([Constraint::Length(3), Constraint::Min(1)])

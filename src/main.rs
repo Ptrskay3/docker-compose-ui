@@ -1,6 +1,7 @@
 use anyhow::Context;
 use bollard::container::ListContainersOptions;
 use bollard::Docker;
+use clap::Parser;
 use dcr::app::App;
 use dcr::event::{Event, EventHandler};
 use dcr::handler::{handle_key_events, handle_mouse_events, DockerEvent};
@@ -12,6 +13,13 @@ use ratatui::Terminal;
 use std::collections::HashMap;
 use std::io;
 use std::path::Path;
+
+#[derive(Parser, Debug)]
+#[command(version, about, long_about = None)]
+struct Args {
+    #[arg(default_value_t = String::from("docker-compose.yml"))]
+    compose_file: String,
+}
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -38,9 +46,7 @@ async fn main() -> anyhow::Result<()> {
         .map(|name| name.trim_start_matches("/").into())
         .collect::<Vec<String>>();
 
-    let file = std::env::args()
-        .nth(1)
-        .unwrap_or_else(|| "docker-compose.yml".to_string());
+    let Args { compose_file: file } = Args::parse();
 
     let file_payload =
         std::fs::read_to_string(&file).with_context(|| format!("file '{file}' not found"))?;

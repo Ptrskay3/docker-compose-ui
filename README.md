@@ -11,5 +11,6 @@ TODO:
 - [ ] Rework the Keys section because it looks horrible (wrap around!)
 - [ ] cleanup
 - [ ] enable Up/Down on alternate screen (currently it's weird because the not rendered list should manage the state of it..)
-- [ ] anyhow::Result
+- [x] anyhow::Result
 - [ ] clap::Parser
+- [ ] if logs are cleared, only fetch logs for that container from that timestamp

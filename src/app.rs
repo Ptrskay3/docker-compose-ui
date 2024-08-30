@@ -6,6 +6,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
+use anyhow::Context as _;
 use bollard::{
     container::{ListContainersOptions, LogsOptions, RemoveContainerOptions},
     secret::ContainerInspectResponse,
@@ -55,7 +56,7 @@ impl DockerModifier {
 }
 
 /// Application result type.
-pub type AppResult<T> = std::result::Result<T, Box<dyn error::Error>>;
+pub type AppResult<T> = std::result::Result<T, Box<dyn error::Error + Send>>;
 
 /// Application.
 #[derive(Debug)]
@@ -194,7 +195,7 @@ impl ComposeList {
         idx: usize,
         id: &str,
         docker: bollard::Docker,
-    ) -> AppResult<()> {
+    ) -> anyhow::Result<()> {
         let mut logs_stream = get_log_stream(id, &docker, self.stream_options.clone());
 
         let log_messages = self.logs.clone();
@@ -269,7 +270,7 @@ impl App {
         }
     }
 
-    pub async fn fetch_all_container_info(&mut self) -> AppResult<()> {
+    pub async fn fetch_all_container_info(&mut self) -> anyhow::Result<()> {
         for (i, name) in &self.container_name_mapping {
             if let Ok(info) = self
                 .docker
@@ -308,7 +309,7 @@ impl App {
         }
     }
 
-    pub async fn restart_log_streaming(&mut self) -> AppResult<()> {
+    pub async fn restart_log_streaming(&mut self) -> anyhow::Result<()> {
         let Some(selected) = self.compose_content.state.selected() else {
             return Ok(());
         };
@@ -322,11 +323,12 @@ impl App {
         Ok(())
     }
 
-    pub async fn restart_all_log_streaming(&mut self) -> AppResult<()> {
+    pub async fn restart_all_log_streaming(&mut self) -> anyhow::Result<()> {
         for (selected, container_name) in &self.container_name_mapping {
             self.compose_content
                 .start_log_stream(*selected, container_name, self.docker.clone())
-                .await?;
+                .await
+                .with_context(|| format!("Failed to start log streaming for {container_name}"))?;
         }
 
         Ok(())
@@ -504,7 +506,7 @@ impl App {
         Some(child)
     }
 
-    pub async fn refresh(&mut self) -> AppResult<()> {
+    pub async fn refresh(&mut self) -> anyhow::Result<()> {
         let mut list_container_filters = HashMap::new();
         list_container_filters.insert("status", vec!["running"]);
 
@@ -586,7 +588,11 @@ impl App {
     }
 
     // FIXME: Should run prune, not remove
-    pub async fn remove_container(&mut self, v: bool, tx: Sender<DockerEvent>) -> AppResult<()> {
+    pub async fn remove_container(
+        &mut self,
+        v: bool,
+        tx: Sender<DockerEvent>,
+    ) -> anyhow::Result<()> {
         let Some(selected) = self.compose_content.state.selected() else {
             return Ok(());
         };
@@ -611,7 +617,7 @@ impl App {
     }
 
     // FIXME: Should run prune, not remove
-    pub async fn wipe(&mut self, v: bool, tx: Sender<DockerEvent>) -> AppResult<()> {
+    pub async fn wipe(&mut self, v: bool, tx: Sender<DockerEvent>) -> anyhow::Result<()> {
         let result =
             futures::future::join_all(self.container_name_mapping.values().map(|container_name| {
                 let docker = self.docker.clone();

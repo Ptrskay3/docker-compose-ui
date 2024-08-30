@@ -23,6 +23,7 @@ indexmap = "2.4.0"
 ratatui-macros = "0.5.0"
 itertools = "0.13.0"
 unicode-width = "0.1.13"
+anyhow = "1.0.86"
 
 # The profile that 'cargo dist' will build with
 [profile.dist]

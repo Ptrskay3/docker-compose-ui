@@ -1,6 +1,7 @@
+use anyhow::Context;
 use bollard::container::ListContainersOptions;
 use bollard::Docker;
-use dcr::app::{App, AppResult};
+use dcr::app::App;
 use dcr::event::{Event, EventHandler};
 use dcr::handler::{handle_key_events, handle_mouse_events, DockerEvent};
 use dcr::tui::Tui;
@@ -13,9 +14,10 @@ use std::io;
 use std::path::Path;
 
 #[tokio::main]
-async fn main() -> AppResult<()> {
+async fn main() -> anyhow::Result<()> {
     #[cfg(unix)]
-    let docker = Docker::connect_with_socket_defaults()?;
+    let docker =
+        Docker::connect_with_socket_defaults().context("Failed to connect to Docker daemon")?;
 
     let mut list_container_filters = HashMap::new();
     list_container_filters.insert("status", vec!["running"]);
@@ -40,7 +42,8 @@ async fn main() -> AppResult<()> {
         .nth(1)
         .unwrap_or_else(|| "docker-compose.yml".to_string());
 
-    let file_payload = std::fs::read_to_string(&file)?;
+    let file_payload =
+        std::fs::read_to_string(&file).with_context(|| format!("file '{file}' not found"))?;
     let compose_content = match serde_yaml::from_str::<Compose>(&file_payload) {
         Ok(c) => c,
         Err(e) => panic!("Failed to parse docker-compose file: {}", e),

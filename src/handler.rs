@@ -1,4 +1,4 @@
-use crate::app::{App, AppResult};
+use crate::app::App;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseEvent, MouseEventKind};
 use tokio::sync::mpsc::Sender;
 
@@ -52,7 +52,7 @@ pub async fn handle_key_events(
     key_event: KeyEvent,
     app: &mut App,
     tx: Sender<DockerEvent>,
-) -> AppResult<()> {
+) -> anyhow::Result<()> {
     match key_event.code {
         // Exit application on `ESC` or `q`
         KeyCode::Esc | KeyCode::Char('q') => {
@@ -260,7 +260,7 @@ pub async fn handle_mouse_events(
     mouse_event: MouseEvent,
     app: &mut App,
     _tx: Sender<DockerEvent>,
-) -> AppResult<()> {
+) -> anyhow::Result<()> {
     match mouse_event.kind {
         MouseEventKind::ScrollUp => scroll_up(app, 5),
         MouseEventKind::ScrollDown => scroll_down(app, 5),

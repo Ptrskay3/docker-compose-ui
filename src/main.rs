@@ -21,8 +21,9 @@ struct Args {
     #[arg(default_value_t = String::from("docker-compose.yml"))]
     compose_file: String,
 
-    #[arg(short, long)]
-    max_path_len: Option<usize>,
+    /// Set the maximum path length to display without truncating.
+    #[arg(short, long, default_value_t = 40)]
+    max_path_len: usize,
 }
 
 #[tokio::main]
@@ -54,7 +55,7 @@ async fn main() -> anyhow::Result<()> {
         compose_file: file,
         max_path_len,
     } = Args::parse();
-    MAX_PATH_CHARS.set(max_path_len.unwrap_or(40)).unwrap();
+    MAX_PATH_CHARS.set(max_path_len).unwrap();
     let file_payload =
         std::fs::read_to_string(&file).with_context(|| format!("file '{file}' not found"))?;
     let compose_content = match serde_yaml::from_str::<Compose>(&file_payload) {

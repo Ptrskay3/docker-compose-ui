@@ -170,7 +170,7 @@ fn create_legend(app: &App) -> Paragraph<'_> {
                 .add_modifier(Modifier::BOLD)
                 .fg(Color::Magenta),
         ),
-        Span::raw(" Project file: "),
+        Span::raw(" File: "),
         Span::styled(
             shorten_path(app.full_path.as_path())
                 .to_string_lossy()
@@ -356,6 +356,7 @@ pub fn render(app: &mut App, frame: &mut Frame) {
         }
         FullScreenContent::Env(i) => {
             // TODO: clean this up.
+            // FIXME: This wraps around, but the main screen does not.
             let selected =
                 app.compose_content.state.selected().unwrap() % app.container_name_mapping.len();
             let Some(Some(container_info)) = app.container_info.get(&selected) else {
@@ -412,6 +413,18 @@ pub fn render(app: &mut App, frame: &mut Frame) {
                         .collect::<Vec<_>>()
                 })
                 .unwrap_or_default();
+
+            let networks = container_info
+                .config
+                .as_ref()
+                .and_then(|cfg| {
+                    cfg.exposed_ports.as_ref().map(|ports| {
+                        let mut result = vec![String::from("Exposed ports:")];
+                        result.extend(ports.keys().map(|port| format!(" {port}")));
+                        result
+                    })
+                })
+                .unwrap_or_default();
             let header_and_main = Layout::default()
                 .direction(Direction::Vertical)
                 .constraints([Constraint::Length(3), Constraint::Min(1)])
@@ -464,7 +477,7 @@ pub fn render(app: &mut App, frame: &mut Frame) {
                 .alternate_screen
                 .lower_right_scroll_state
                 .viewport_content_length(20)
-                .content_length(20); // TODO
+                .content_length(networks.len()); // TODO
             app.alternate_screen.upper_right_scroll_state = app
                 .alternate_screen
                 .upper_right_scroll_state
@@ -484,7 +497,7 @@ pub fn render(app: &mut App, frame: &mut Frame) {
                 lower_left,
             );
             frame.render_widget(
-                Paragraph::new("networks here..")
+                Paragraph::new(networks.join("\n"))
                     .scroll((app.alternate_screen.lower_right_scroll as _, 0))
                     .block(
                         Block::default()
@@ -562,22 +575,8 @@ pub fn render(app: &mut App, frame: &mut Frame) {
                 }),
                 &mut app.alternate_screen.upper_left_scroll_state,
             );
-            frame.render_widget(
-                Paragraph::new(Line::from(vec![
-                    Span::raw("Looking at "),
-                    Span::styled(
-                        app.container_name_mapping.get(&selected).expect("to exist"),
-                        Style::default().fg(Color::Yellow),
-                    ),
-                ]))
-                .block(
-                    Block::default()
-                        .title("Container details")
-                        .borders(Borders::ALL)
-                        .style(Style::default().bg(Color::Black).fg(Color::LightBlue)),
-                ),
-                header_and_main[0],
-            );
+
+            frame.render_widget(create_container_info(app), header_and_main[0]);
             return;
         }
         FullScreenContent::None => {}

@@ -25,6 +25,7 @@ itertools = "0.13.0"
 unicode-width = "0.1.13"
 anyhow = "1.0.86"
 clap = { version = "4.5.16", features = ["derive"] }
+jiff = "0.1.11"
 
 # The profile that 'cargo dist' will build with
 [profile.dist]

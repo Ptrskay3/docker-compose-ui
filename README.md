@@ -13,4 +13,5 @@ TODO:
 - [ ] enable Up/Down on alternate screen (currently it's weird because the not rendered list should manage the state of it..)
 - [x] anyhow::Result
 - [ ] clap::Parser
-- [ ] if logs are cleared, only fetch logs for that container from that timestamp
+- [x] if logs are cleared, only fetch logs for that container from that timestamp
+- [ ] Move from IndexMap to simple Vec if possible

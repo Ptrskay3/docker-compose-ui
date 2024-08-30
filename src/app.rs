@@ -129,6 +129,17 @@ impl AlternateScreen {
 pub struct StreamOptions {
     pub tail: String,
     pub all: bool,
+    pub since: Option<i64>,
+}
+
+impl StreamOptions {
+    pub fn from_unix_timestamp(since: i64) -> Self {
+        Self {
+            since: Some(since),
+            all: false,
+            tail: "50".into(),
+        }
+    }
 }
 
 impl Default for StreamOptions {
@@ -136,6 +147,7 @@ impl Default for StreamOptions {
         Self {
             tail: "50".into(),
             all: false,
+            since: None,
         }
     }
 }
@@ -147,6 +159,11 @@ impl From<StreamOptions> for LogsOptions<String> {
             stdout: true,
             stderr: true,
             tail: val.tail,
+            since: if let Some(since) = val.since {
+                since
+            } else {
+                0
+            },
             ..Default::default()
         };
 
@@ -183,6 +200,7 @@ pub struct ComposeList {
     pub stop_queued: Queued,
     pub modifiers: DockerModifier,
     pub log_streamer_handle: Arc<Mutex<IndexMap<usize, JoinHandle<()>>>>,
+    pub logs_since: IndexMap<usize, StreamOptions>,
     pub logs: Arc<Mutex<IndexMap<usize, Vec<String>>>>,
     pub error_msg: Option<String>,
     pub stream_options: StreamOptions,
@@ -196,7 +214,8 @@ impl ComposeList {
         id: &str,
         docker: bollard::Docker,
     ) -> anyhow::Result<()> {
-        let mut logs_stream = get_log_stream(id, &docker, self.stream_options.clone());
+        let stream_options = self.logs_since.get(&idx).cloned().unwrap_or_default();
+        let mut logs_stream = get_log_stream(id, &docker, stream_options);
 
         let log_messages = self.logs.clone();
         let mut guard = self.log_streamer_handle.lock().unwrap();
@@ -248,6 +267,7 @@ impl App {
                 modifiers: DockerModifier::empty(),
                 log_streamer_handle: Arc::new(Mutex::new(IndexMap::new())),
                 logs: Arc::new(Mutex::new(IndexMap::new())),
+                logs_since: IndexMap::new(),
                 error_msg: None,
                 stream_options: StreamOptions::default(),
             },
@@ -306,6 +326,15 @@ impl App {
                 .unwrap()
                 .entry(selected)
                 .or_default() = Vec::new();
+
+            self.compose_content.logs_since.insert(
+                selected,
+                StreamOptions::from_unix_timestamp(
+                    jiff::Timestamp::now()
+                        .duration_since(jiff::Timestamp::UNIX_EPOCH)
+                        .as_secs(),
+                ),
+            );
         }
     }
 

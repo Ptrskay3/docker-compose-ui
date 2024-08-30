@@ -281,12 +281,14 @@ dependencies = [
  "dotenvy",
  "futures",
  "indexmap 2.4.0",
+ "itertools",
  "ratatui",
  "ratatui-macros",
  "serde",
  "serde_yaml",
  "textwrap",
  "tokio",
+ "unicode-width",
 ]
 
 [[package]]

@@ -240,17 +240,11 @@ pub async fn handle_key_events(
                 app.full_screen_content = FullScreenContent::None;
             }
         }
-        KeyCode::BackTab => match app.full_screen_content {
-            FullScreenContent::Env(state) => {
-                app.full_screen_content = FullScreenContent::Env(state.transition_back());
-            }
-            _ => {}
+        KeyCode::BackTab => if let FullScreenContent::Env(state) = app.full_screen_content {
+            app.full_screen_content = FullScreenContent::Env(state.transition_back());
         },
-        KeyCode::Tab => match app.full_screen_content {
-            FullScreenContent::Env(state) => {
-                app.full_screen_content = FullScreenContent::Env(state.transition());
-            }
-            _ => {}
+        KeyCode::Tab => if let FullScreenContent::Env(state) = app.full_screen_content {
+            app.full_screen_content = FullScreenContent::Env(state.transition());
         },
 
         _ => {}

@@ -14,6 +14,7 @@ use ratatui_macros::{horizontal, vertical};
 use crate::{
     app::{App, DockerModifier},
     handler::{FullScreenContent, SplitScreen},
+    text_wrap::{wrap_line, Options},
     utils::shorten_path,
 };
 
@@ -21,7 +22,7 @@ const UNNAMED: &str = "<unnamed>";
 const UNSPECIFIED: &str = "<unspecified>";
 const ALL_INTERFACES: &str = "0.0.0.0";
 
-fn create_help<'a>() -> Paragraph<'a> {
+fn render_help(frame: &mut Frame, area: Rect) {
     let text = Line::default().spans(vec![
         Span::styled(
             "Basic ",
@@ -154,12 +155,31 @@ fn create_help<'a>() -> Paragraph<'a> {
         Span::raw(" to quit."),
     ]);
 
-    Paragraph::new(vec![text, navigation, bottom_line]).block(
-        Block::default()
-            .borders(Borders::ALL)
-            .title("Keys")
-            .style(Style::default().fg(Color::LightBlue).bg(Color::Black)),
-    )
+    let mut text = wrap_line(
+        &text,
+        Options::from_width_and_header(area.width as _, "Basic"),
+    );
+    let navigation = wrap_line(
+        &navigation,
+        Options::from_width_and_header(area.width as _, "Navigation"),
+    );
+    let bottom_line = wrap_line(
+        &bottom_line,
+        Options::from_width_and_header(area.width as _, "Meta"),
+    );
+
+    text.lines.extend(navigation.lines);
+    text.lines.extend(bottom_line.lines);
+
+    frame.render_widget(
+        Paragraph::new(text).block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title("Keys")
+                .style(Style::default().fg(Color::LightBlue).bg(Color::Black)),
+        ),
+        area,
+    );
 }
 
 fn create_legend(app: &App) -> Paragraph<'_> {
@@ -344,7 +364,7 @@ pub fn render(app: &mut App, frame: &mut Frame) {
     }
     match app.full_screen_content {
         FullScreenContent::Help => {
-            let [_, inner_area, _] = vertical![>=0, <=6, >=0].areas(frame.area());
+            let [_, inner_area, _] = vertical![>=0, <=7, >=0].areas(frame.area());
             frame.render_widget(
                 Block::default()
                     .title("Help")
@@ -352,7 +372,7 @@ pub fn render(app: &mut App, frame: &mut Frame) {
                     .style(Style::default().fg(Color::LightBlue).bg(Color::Black)),
                 frame.area(),
             );
-            frame.render_widget(create_help(), inner_area);
+            render_help(frame, inner_area);
             return;
         }
         FullScreenContent::Env(i) => {
@@ -529,7 +549,7 @@ pub fn render(app: &mut App, frame: &mut Frame) {
                 .alternate_screen
                 .lower_right_scroll_state
                 .viewport_content_length(20)
-                .content_length(networks.len()); // TODO
+                .content_length(networks.len());
             app.alternate_screen.upper_right_scroll_state = app
                 .alternate_screen
                 .upper_right_scroll_state
@@ -865,7 +885,7 @@ impl StatefulWidget for Popup<'_> {
 }
 
 const MIN_ROWS: u16 = 20;
-const MIN_COLS: u16 = 100;
+const MIN_COLS: u16 = 130;
 
 #[derive(Debug)]
 pub struct ResizeScreen {

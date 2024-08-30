@@ -13,4 +13,5 @@ pub mod tui;
 /// Event handler.
 pub mod handler;
 
+pub mod text_wrap;
 pub mod utils;

@@ -92,6 +92,12 @@ pub struct AlternateScreen {
     pub lower_right_scroll: usize,
 }
 
+impl Default for AlternateScreen {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl AlternateScreen {
     pub fn new() -> Self {
         Self {

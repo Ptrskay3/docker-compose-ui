@@ -57,15 +57,11 @@ pub async fn handle_key_events(
         // Exit application on `ESC` or `q`
         KeyCode::Esc | KeyCode::Char('q') => {
             match app.alternate_screen_content {
-                AlternateScreenContent::Help => {
+                AlternateScreenContent::Help | AlternateScreenContent::ContainerDetails(_) => {
                     app.alternate_screen_content = AlternateScreenContent::None;
                     return Ok(());
                 }
-                AlternateScreenContent::ContainerDetails(_) => {
-                    app.alternate_screen_content = AlternateScreenContent::None;
-                    return Ok(());
-                }
-                e => e,
+                e @ AlternateScreenContent::None => e,
             };
             if app.show_popup {
                 app.show_popup = false;

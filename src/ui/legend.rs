@@ -127,7 +127,19 @@ pub fn create_docker_modifiers(modifiers: DockerModifier) -> Paragraph<'static> 
 }
 
 pub fn create_container_info(app: &mut App) -> impl Widget + '_ {
-    let selected = app.compose_content.state.selected().unwrap();
+    // A bit ugly to duplicate, but it's only 2 blocks..
+    let Some(selected) = app.compose_content.state.selected() else {
+        return Paragraph::new(Line::styled(
+            "Not available/Not running",
+            Style::default().fg(Color::Red),
+        ))
+        .block(
+            Block::default()
+                .title("Container info")
+                .borders(Borders::ALL)
+                .style(Style::default().fg(Color::LightBlue).bg(Color::Black)),
+        );
+    };
     let Some(Some(container_info)) = app.container_info.get(&selected) else {
         return Paragraph::new(Line::styled(
             "Not available/Not running",

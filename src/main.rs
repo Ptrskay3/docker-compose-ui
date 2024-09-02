@@ -46,9 +46,9 @@ async fn main() -> anyhow::Result<()> {
     let running_container_names = containers
         .iter()
         .cloned()
-        .flat_map(|c| c.names)
+        .filter_map(|c| c.names)
         .flatten()
-        .map(|name| name.trim_start_matches("/").into())
+        .map(|name| name.trim_start_matches('/').into())
         .collect::<Vec<String>>();
 
     let Args {
@@ -85,10 +85,10 @@ async fn main() -> anyhow::Result<()> {
                 container_name.clone()
             } else {
                 // We don't scale services, the 1 index should be fine.
-                format!("{}-{}-1", project_name, service_name)
+                format!("{project_name}-{service_name}-1")
             }
         } else {
-            format!("{}-{}-1", project_name, service_name)
+            format!("{project_name}-{service_name}-1")
         };
         container_name_mapping.insert(i, service_name.clone());
     }
@@ -130,7 +130,7 @@ async fn main() -> anyhow::Result<()> {
             Event::Tick => app.tick(),
             Event::Key(key_event) => handle_key_events(key_event, &mut app, tx.clone()).await?,
             Event::Mouse(mouse_event) => {
-                handle_mouse_events(mouse_event, &mut app, tx.clone()).await?
+                handle_mouse_events(mouse_event, &mut app, tx.clone()).await?;
             }
             Event::Resize(_, _) => {}
         }

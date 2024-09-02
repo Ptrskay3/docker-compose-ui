@@ -34,7 +34,7 @@ impl Widget for ResizeScreen {
         let original_height = area.height;
         let original_width = area.width;
 
-        let mut height_span = Span::from(format!("{}", original_height));
+        let mut height_span = Span::from(format!("{original_height}"));
 
         let height_style = if original_height >= self.min_height {
             Style::default().fg(Color::Green)
@@ -43,7 +43,7 @@ impl Widget for ResizeScreen {
         };
         height_span = height_span.style(height_style);
 
-        let mut width_span = Span::from(format!("{}", original_width));
+        let mut width_span = Span::from(format!("{original_width}"));
 
         let width_style = if original_width >= self.min_width {
             Style::default().fg(Color::Green)

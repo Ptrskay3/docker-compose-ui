@@ -229,7 +229,7 @@ pub struct ComposeList {
 
 // TODO: Auto-scroll
 impl ComposeList {
-    pub async fn start_log_stream(
+    pub fn start_log_stream(
         &mut self,
         idx: usize,
         id: &str,
@@ -368,8 +368,7 @@ impl App {
             return Ok(());
         };
         self.compose_content
-            .start_log_stream(selected, container_name, self.docker.clone())
-            .await?;
+            .start_log_stream(selected, container_name, self.docker.clone())?;
 
         Ok(())
     }
@@ -378,7 +377,6 @@ impl App {
         for (selected, container_name) in &self.container_name_mapping {
             self.compose_content
                 .start_log_stream(*selected, container_name, self.docker.clone())
-                .await
                 .with_context(|| format!("Failed to start log streaming for {container_name}"))?;
         }
 
@@ -573,9 +571,9 @@ impl App {
         self.running_container_names = containers
             .iter()
             .cloned()
-            .flat_map(|c| c.names)
+            .filter_map(|c| c.names)
             .flatten()
-            .map(|name| name.trim_start_matches("/").into())
+            .map(|name| name.trim_start_matches('/').into())
             .collect::<Vec<String>>();
         let clear_start =
             self.running_container_names
@@ -588,7 +586,7 @@ impl App {
                         .names
                         .iter()
                         .find_map(|(k, n)| if name == n { Some(k) } else { None })
-                        .cloned()
+                        .copied()
                     {
                         acc.push(index);
                     }
@@ -605,7 +603,7 @@ impl App {
                         .names
                         .iter()
                         .find_map(|(k, n)| if name == n { Some(k) } else { None })
-                        .cloned()
+                        .copied()
                     {
                         acc.push(index);
                     }

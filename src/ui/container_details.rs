@@ -48,7 +48,7 @@ pub fn render_container_details(app: &mut App, frame: &mut Frame, i: SplitScreen
 
     let labels_formatted: Vec<_> = labels
         .into_iter()
-        .map(|(name, value)| format!("{}: {}", name, value))
+        .map(|(name, value)| format!("{name}: {value}"))
         .collect();
 
     let volumes = container_info
@@ -80,7 +80,7 @@ pub fn render_container_details(app: &mut App, frame: &mut Frame, i: SplitScreen
                 let mut result = vec![String::from("Port bindings:")];
                 ports.iter().for_each(|(port, bindings)| {
                     if let Some(bindings) = bindings {
-                        for binding in bindings.iter() {
+                        for binding in bindings {
                             let host_ip = match binding.host_ip.as_deref() {
                                 Some("") | None => ALL_INTERFACES,
                                 Some(ip) => ip,

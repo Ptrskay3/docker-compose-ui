@@ -1,6 +1,5 @@
 use std::{
     collections::HashMap,
-    error,
     hash::Hash,
     process::Stdio,
     sync::{Arc, Mutex},
@@ -54,9 +53,6 @@ impl DockerModifier {
         args
     }
 }
-
-/// Application result type.
-pub type AppResult<T> = std::result::Result<T, Box<dyn error::Error + Send>>;
 
 /// Application.
 #[derive(Debug)]
@@ -262,6 +258,7 @@ impl ComposeList {
     }
 }
 
+// TODO: This is unnecessary, we can just use the IndexMap.
 #[derive(Debug, Default)]
 pub struct Queued {
     pub state: Vec<usize>,
@@ -377,7 +374,7 @@ impl App {
         Ok(())
     }
 
-    pub async fn restart_all_log_streaming(&mut self) -> anyhow::Result<()> {
+    pub async fn start_all_log_streaming(&mut self) -> anyhow::Result<()> {
         for (selected, container_name) in &self.container_name_mapping {
             self.compose_content
                 .start_log_stream(*selected, container_name, self.docker.clone())
@@ -635,7 +632,7 @@ impl App {
             .names
             .retain(|i, _| clear_stop.contains(i));
 
-        self.restart_all_log_streaming().await?;
+        self.start_all_log_streaming().await?;
         self.fetch_all_container_info().await?;
 
         Ok(())

@@ -22,7 +22,7 @@ struct Args {
     compose_file: String,
 
     /// Set the maximum path length to display without truncating.
-    #[arg(short, long, default_value_t = 40)]
+    #[arg(env, long, default_value_t = 40)]
     max_path_len: usize,
 }
 
@@ -60,7 +60,7 @@ async fn main() -> anyhow::Result<()> {
         std::fs::read_to_string(&file).with_context(|| format!("file '{file}' not found"))?;
     let compose_content = match serde_yaml::from_str::<Compose>(&file_payload) {
         Ok(c) => c,
-        Err(e) => panic!("Failed to parse docker-compose file: {}", e),
+        Err(e) => anyhow::bail!("Failed to parse docker-compose file: {}", e),
     };
 
     // Try to load the .env from the same directory as the docker-compose file.
@@ -110,11 +110,7 @@ async fn main() -> anyhow::Result<()> {
         docker_version,
     );
 
-    for (i, service_name) in &app.container_name_mapping {
-        app.compose_content
-            .start_log_stream(*i, service_name, docker.clone())
-            .await?;
-    }
+    app.start_all_log_streaming().await?;
     app.fetch_all_container_info().await?;
 
     // Initialize the terminal user interface.

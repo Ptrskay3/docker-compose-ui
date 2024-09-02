@@ -1,4 +1,3 @@
-mod alternate_screen;
 mod container_details;
 mod help;
 mod legend;
@@ -6,7 +5,6 @@ mod main_screen;
 mod popup;
 mod resize_screen;
 
-use main_screen::render_main_screen;
 use ratatui::Frame;
 
 use crate::{app::App, handler::AlternateScreenContent};
@@ -34,5 +32,5 @@ pub fn render(app: &mut App, frame: &mut Frame) {
         }
         AlternateScreenContent::None => {}
     }
-    render_main_screen(app, frame);
+    main_screen::render_main_screen(app, frame);
 }

@@ -22,15 +22,12 @@ pub fn render(app: &mut App, frame: &mut Frame) {
         return;
     }
     match app.alternate_screen_content {
-        AlternateScreenContent::Help => {
-            help::render_help(frame);
-            return;
-        }
+        AlternateScreenContent::Help => help::render_help(frame),
+
         AlternateScreenContent::ContainerDetails(i) => {
-            container_details::render_container_details(app, frame, i);
-            return;
+            container_details::render_container_details(app, frame, i)
         }
-        AlternateScreenContent::None => {}
+
+        AlternateScreenContent::None => main_screen::render_main_screen(app, frame),
     }
-    main_screen::render_main_screen(app, frame);
 }

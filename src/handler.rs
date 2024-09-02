@@ -209,7 +209,6 @@ pub async fn handle_key_events(
         }
 
         KeyCode::Char('j') | KeyCode::PageUp => scroll_up(app, 1),
-
         KeyCode::Char('k') | KeyCode::PageDown => scroll_down(app, 1),
 
         KeyCode::Char('w') if key_event.modifiers == KeyModifiers::CONTROL => {

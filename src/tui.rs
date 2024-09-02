@@ -69,7 +69,6 @@ impl<B: Backend> Tui<B> {
     ///
     /// It disables the raw mode and reverts back the terminal properties.
     pub fn exit(&mut self) -> anyhow::Result<()> {
-        // TODO: persist options for DockerModifier?
         Self::reset()?;
         self.terminal.show_cursor()?;
         Ok(())

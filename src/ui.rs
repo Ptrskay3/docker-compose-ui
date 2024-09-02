@@ -13,7 +13,7 @@ use ratatui_macros::{horizontal, vertical};
 
 use crate::{
     app::{App, DockerModifier},
-    handler::{FullScreenContent, SplitScreen},
+    handler::{AlternateScreenContent, SplitScreen},
     text_wrap::{wrap_line, Options},
     utils::shorten_path,
 };
@@ -360,8 +360,8 @@ pub fn render(app: &mut App, frame: &mut Frame) {
         frame.render_widget(ResizeScreen::new(), frame.area());
         return;
     }
-    match app.full_screen_content {
-        FullScreenContent::Help => {
+    match app.alternate_screen_content {
+        AlternateScreenContent::Help => {
             let [_, inner_area, _] = vertical![>=0, <=7, >=0].areas(frame.area());
             frame.render_widget(
                 Block::default()
@@ -373,7 +373,7 @@ pub fn render(app: &mut App, frame: &mut Frame) {
             render_help(frame, inner_area);
             return;
         }
-        FullScreenContent::Env(i) => {
+        AlternateScreenContent::ContainerDetails(i) => {
             // TODO: clean this up.
             let selected = app
                 .compose_content
@@ -687,7 +687,7 @@ pub fn render(app: &mut App, frame: &mut Frame) {
             frame.render_widget(create_container_info(app), header_and_main[0]);
             return;
         }
-        FullScreenContent::None => {}
+        AlternateScreenContent::None => {}
     }
 
     let main_and_legend = Layout::default()

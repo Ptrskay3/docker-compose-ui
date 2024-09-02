@@ -20,7 +20,7 @@ use tokio::{sync::mpsc::Sender, task::JoinHandle};
 use ratatui::widgets::{ListState, ScrollbarState};
 use tokio::process::{Child, Command};
 
-use crate::handler::{DockerEvent, FullScreenContent, QueueType};
+use crate::handler::{AlternateScreenContent, DockerEvent, QueueType};
 
 bitflags::bitflags! {
     #[derive(Copy, Clone, PartialEq, Eq, Debug)]
@@ -61,23 +61,42 @@ pub type AppResult<T> = std::result::Result<T, Box<dyn error::Error + Send>>;
 /// Application.
 #[derive(Debug)]
 pub struct App {
+    /// The name of the compose project either set via .env or the toplevel directory.
     pub project_name: String,
+    /// Whether the application is running.
     pub running: bool,
+    /// Data associated with compose
     pub compose_content: ComposeList,
+    /// The name of the currently running Docker containers.
     pub running_container_names: Vec<String>,
+    /// The Docker client.
     pub docker: Docker,
+    /// The target Docker Compose file name.
     pub target: String,
+    /// Whether to show the error popup.
     pub show_popup: bool,
+    /// The vertical scroll value for the popup.
     pub popup_scroll: usize,
+    /// The vertical scroll state for the popup.
     pub popup_scroll_state: ScrollbarState,
+    /// The vertical scroll value for the main list.
     pub vertical_scroll_state: ScrollbarState,
+    /// The vertical scroll state for the main list.
     pub vertical_scroll: usize,
+    /// The mapping of docker compose toplevel services to their real container names.
     pub container_name_mapping: IndexMap<usize, String>,
+    /// The container info for each running container.
     pub container_info: IndexMap<usize, Option<ContainerInspectResponse>>,
+    /// The full path to the docker-compose file.
+    // FIXME: maybe this is enough and we can delete `target`?
     pub full_path: std::path::PathBuf,
+    /// The version of the Docker daemon.
     pub docker_version: String,
-    pub full_screen_content: FullScreenContent,
+    /// The content of on alternate screen.
+    pub alternate_screen_content: AlternateScreenContent,
+    /// The state of the alternate screen (scrolls).
     pub alternate_screen: AlternateScreen,
+    /// The number of services in the compose file.
     pub services_len: usize,
 }
 
@@ -190,15 +209,25 @@ pub fn get_log_stream(
 
 #[derive(Debug)]
 pub struct ComposeList {
+    /// The full compose file structure deserialized.
     pub compose: Compose,
+    /// The state for the main services list.
     pub state: ListState,
+    /// Services that are queued to start.
     pub start_queued: Queued,
+    /// Services that are queued to stop.
     pub stop_queued: Queued,
+    /// The Docker modifiers.
     pub modifiers: DockerModifier,
+    /// The handles for the log streams of each service.
     pub log_streamer_handle: Arc<Mutex<IndexMap<usize, JoinHandle<()>>>>,
+    /// The logs since a certain timestamp to take clearing into account.
     pub logs_since: IndexMap<usize, StreamOptions>,
+    /// The actual log contents of each service.
     pub logs: Arc<Mutex<IndexMap<usize, Vec<String>>>>,
+    /// The error message to display on the popup.
     pub error_msg: Option<String>,
+    /// The stream options for the logs.
     pub stream_options: StreamOptions,
 }
 
@@ -280,7 +309,7 @@ impl App {
             container_info: IndexMap::new(),
             full_path: full_path.as_ref().to_path_buf(),
             docker_version,
-            full_screen_content: FullScreenContent::None,
+            alternate_screen_content: AlternateScreenContent::None,
             alternate_screen: AlternateScreen::new(),
             services_len,
         }

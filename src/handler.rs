@@ -14,9 +14,9 @@ pub enum QueueType {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub enum FullScreenContent {
+pub enum AlternateScreenContent {
     Help,
-    Env(SplitScreen),
+    ContainerDetails(SplitScreen),
     None,
 }
 
@@ -56,13 +56,13 @@ pub async fn handle_key_events(
     match key_event.code {
         // Exit application on `ESC` or `q`
         KeyCode::Esc | KeyCode::Char('q') => {
-            match app.full_screen_content {
-                FullScreenContent::Help => {
-                    app.full_screen_content = FullScreenContent::None;
+            match app.alternate_screen_content {
+                AlternateScreenContent::Help => {
+                    app.alternate_screen_content = AlternateScreenContent::None;
                     return Ok(());
                 }
-                FullScreenContent::Env(_) => {
-                    app.full_screen_content = FullScreenContent::None;
+                AlternateScreenContent::ContainerDetails(_) => {
+                    app.alternate_screen_content = AlternateScreenContent::None;
                     return Ok(());
                 }
                 e => e,
@@ -100,9 +100,9 @@ pub async fn handle_key_events(
         }
 
         KeyCode::Enter => {
-            match app.full_screen_content {
-                FullScreenContent::Help | FullScreenContent::Env(_) => {
-                    app.full_screen_content = FullScreenContent::None;
+            match app.alternate_screen_content {
+                AlternateScreenContent::Help | AlternateScreenContent::ContainerDetails(_) => {
+                    app.alternate_screen_content = AlternateScreenContent::None;
                     return Ok(());
                 }
                 _ => {}
@@ -223,27 +223,33 @@ pub async fn handle_key_events(
             app.wipe(true, tx.clone()).await?;
         }
         KeyCode::Char('h') => {
-            if app.full_screen_content != FullScreenContent::Help {
-                app.full_screen_content = FullScreenContent::Help;
+            if app.alternate_screen_content != AlternateScreenContent::Help {
+                app.alternate_screen_content = AlternateScreenContent::Help;
             } else {
-                app.full_screen_content = FullScreenContent::None;
+                app.alternate_screen_content = AlternateScreenContent::None;
             }
         }
         KeyCode::Char('e') => {
-            if !matches!(app.full_screen_content, FullScreenContent::Env(_)) {
-                app.full_screen_content = FullScreenContent::Env(SplitScreen::UpperLeft);
+            if !matches!(
+                app.alternate_screen_content,
+                AlternateScreenContent::ContainerDetails(_)
+            ) {
+                app.alternate_screen_content =
+                    AlternateScreenContent::ContainerDetails(SplitScreen::UpperLeft);
             } else {
-                app.full_screen_content = FullScreenContent::None;
+                app.alternate_screen_content = AlternateScreenContent::None;
             }
         }
         KeyCode::BackTab => {
-            if let FullScreenContent::Env(state) = app.full_screen_content {
-                app.full_screen_content = FullScreenContent::Env(state.transition_back());
+            if let AlternateScreenContent::ContainerDetails(state) = app.alternate_screen_content {
+                app.alternate_screen_content =
+                    AlternateScreenContent::ContainerDetails(state.transition_back());
             }
         }
         KeyCode::Tab => {
-            if let FullScreenContent::Env(state) = app.full_screen_content {
-                app.full_screen_content = FullScreenContent::Env(state.transition());
+            if let AlternateScreenContent::ContainerDetails(state) = app.alternate_screen_content {
+                app.alternate_screen_content =
+                    AlternateScreenContent::ContainerDetails(state.transition());
             }
         }
 
@@ -269,7 +275,9 @@ fn scroll_up(app: &mut App, amount: usize) {
     if app.show_popup {
         app.popup_scroll = app.popup_scroll.saturating_sub(amount);
         app.popup_scroll_state = app.popup_scroll_state.position(app.popup_scroll);
-    } else if let FullScreenContent::Env(split_screen) = app.full_screen_content {
+    } else if let AlternateScreenContent::ContainerDetails(split_screen) =
+        app.alternate_screen_content
+    {
         match split_screen {
             SplitScreen::UpperLeft => {
                 app.alternate_screen.upper_left_scroll = app
@@ -322,7 +330,9 @@ fn scroll_down(app: &mut App, amount: usize) {
     if app.show_popup {
         app.popup_scroll = app.popup_scroll.saturating_add(amount);
         app.popup_scroll_state = app.popup_scroll_state.position(app.popup_scroll);
-    } else if let FullScreenContent::Env(split_screen) = app.full_screen_content {
+    } else if let AlternateScreenContent::ContainerDetails(split_screen) =
+        app.alternate_screen_content
+    {
         match split_screen {
             SplitScreen::UpperLeft => {
                 app.alternate_screen.upper_left_scroll = app

@@ -8,10 +8,10 @@
 // to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 // copies of the Software, and to permit persons to whom the Software is
 // furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in all
 // copies or substantial portions of the Software.
-// 
+//
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 // IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 // FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -42,13 +42,10 @@ pub struct Options<'a> {
 
 impl<'a> Options<'a> {
     pub fn from_width_and_header(width: usize, header: &str) -> Self {
-        let subseq_indent = std::iter::repeat(" ")
-            .take(header.len() + 1)
-            .collect::<String>();
         Self {
             width,
             initial_indent: Span::raw(""),
-            subsequent_indent: Span::raw(subseq_indent),
+            subsequent_indent: Span::raw(" ".repeat(header.len() + 1)),
             break_words: false,
         }
     }

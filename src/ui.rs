@@ -316,7 +316,6 @@ fn create_container_info(app: &mut App) -> impl Widget + '_ {
     let value_style = Style::default().fg(Color::LightYellow);
 
     let name = container_info.name.as_deref().unwrap_or_default();
-
     let created = container_info.created.as_deref().unwrap_or_default();
 
     let image = container_info
@@ -329,7 +328,6 @@ fn create_container_info(app: &mut App) -> impl Widget + '_ {
         .as_ref()
         .and_then(|c| c.volumes.as_ref().map(|v| v.len()))
         .unwrap_or_default();
-
     let state = container_info
         .state
         .as_ref()
@@ -595,7 +593,6 @@ pub fn render(app: &mut App, frame: &mut Frame) {
                 .collect::<Vec<_>>(),
             );
 
-            // TODO: Coloring of env vars
             frame.render_widget(
                 Paragraph::new(env)
                     .scroll((app.alternate_screen.lower_left_scroll as _, 0))

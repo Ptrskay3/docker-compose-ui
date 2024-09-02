@@ -101,15 +101,11 @@ pub async fn handle_key_events(
 
         KeyCode::Enter => {
             match app.full_screen_content {
-                FullScreenContent::Help => {
+                FullScreenContent::Help | FullScreenContent::Env(_) => {
                     app.full_screen_content = FullScreenContent::None;
                     return Ok(());
                 }
-                FullScreenContent::Env(_) => {
-                    app.full_screen_content = FullScreenContent::None;
-                    return Ok(());
-                }
-                e => e,
+                _ => {}
             };
             if app.show_popup {
                 app.show_popup = false;

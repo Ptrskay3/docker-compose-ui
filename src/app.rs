@@ -159,11 +159,7 @@ impl From<StreamOptions> for LogsOptions<String> {
             stdout: true,
             stderr: true,
             tail: val.tail,
-            since: if let Some(since) = val.since {
-                since
-            } else {
-                0
-            },
+            since: val.since.unwrap_or_default(),
             ..Default::default()
         };
 

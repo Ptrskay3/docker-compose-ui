@@ -7,10 +7,11 @@ use ratatui::{
 };
 use ratatui_macros::{horizontal, vertical};
 
-use super::{legend::create_container_info, ALL_INTERFACES, UNNAMED, UNSPECIFIED};
+use super::{get_bg_color, legend::create_container_info, ALL_INTERFACES, UNNAMED, UNSPECIFIED};
 use crate::{app::App, handler::SplitScreen};
 
 pub fn render_container_details(app: &mut App, frame: &mut Frame, i: SplitScreen) {
+    let bg = get_bg_color();
     let size = frame.area();
     let selected = app
         .compose_content
@@ -28,7 +29,7 @@ pub fn render_container_details(app: &mut App, frame: &mut Frame, i: SplitScreen
             .block(
                 Block::default()
                     .borders(Borders::ALL)
-                    .style(Style::default().fg(Color::LightBlue).bg(Color::Black)),
+                    .style(Style::default().fg(Color::LightBlue).bg(Color::White)),
             ),
             frame.area(),
         );
@@ -141,8 +142,8 @@ pub fn render_container_details(app: &mut App, frame: &mut Frame, i: SplitScreen
     let [upper_left, upper_right] = horizontal![== 50%, == 50%].areas(upper_area);
     let [lower_left, lower_right] = horizontal![== 50%, == 50%].areas(lower_area);
 
-    let style_selected = Style::default().fg(Color::Red).bg(Color::Black);
-    let style_not_selected = Style::default().fg(Color::LightBlue).bg(Color::Black);
+    let style_selected = Style::default().fg(Color::Red).bg(bg);
+    let style_not_selected = Style::default().fg(Color::LightBlue).bg(bg);
     let (label_style, env_style, volume_style, network_style) = match i {
         SplitScreen::UpperLeft => (
             style_selected,

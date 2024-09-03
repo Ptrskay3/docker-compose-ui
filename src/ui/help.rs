@@ -8,13 +8,16 @@ use ratatui_macros::vertical;
 
 use crate::text_wrap::{wrap_line, Options};
 
+use super::get_bg_color;
+
 pub fn render_help(frame: &mut Frame) {
+    let bg = get_bg_color();
     let [_, inner_area, _] = vertical![>=0, <=7, >=0].areas(frame.area());
     frame.render_widget(
         Block::default()
             .title("Help")
             .borders(Borders::ALL)
-            .style(Style::default().fg(Color::LightBlue).bg(Color::Black)),
+            .style(Style::default().fg(Color::LightBlue).bg(bg)),
         frame.area(),
     );
     let text = Line::default().spans(vec![
@@ -170,7 +173,7 @@ pub fn render_help(frame: &mut Frame) {
             Block::default()
                 .borders(Borders::ALL)
                 .title("Keys")
-                .style(Style::default().fg(Color::LightBlue).bg(Color::Black)),
+                .style(Style::default().fg(Color::LightBlue).bg(bg)),
         ),
         inner_area,
     );

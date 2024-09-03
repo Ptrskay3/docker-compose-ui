@@ -6,7 +6,7 @@ use dcr::app::App;
 use dcr::event::{Event, EventHandler};
 use dcr::handler::{handle_key_events, handle_mouse_events, DockerEvent};
 use dcr::tui::Tui;
-use dcr::MAX_PATH_CHARS;
+use dcr::{LIGHT_MODE, MAX_PATH_CHARS};
 use docker_compose_types::Compose;
 use indexmap::IndexMap;
 use ratatui::backend::CrosstermBackend;
@@ -24,6 +24,10 @@ struct Args {
     /// Set the maximum path length to display without truncating.
     #[arg(env, long, default_value_t = 40)]
     max_path_len: usize,
+
+    /// Enable light mode.
+    #[arg(env = "DCR_LIGHT_MODE", long)]
+    light: bool,
 }
 
 #[tokio::main]
@@ -54,8 +58,10 @@ async fn main() -> anyhow::Result<()> {
     let Args {
         compose_file: file,
         max_path_len,
+        light
     } = Args::parse();
     MAX_PATH_CHARS.set(max_path_len).unwrap();
+    LIGHT_MODE.set(light).unwrap();
     let file_payload =
         std::fs::read_to_string(&file).with_context(|| format!("file '{file}' not found"))?;
     let compose_content = match serde_yaml::from_str::<Compose>(&file_payload) {

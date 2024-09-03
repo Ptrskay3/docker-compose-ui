@@ -11,6 +11,7 @@ TODO:
 - [x] anyhow::Result
 - [x] clap::Parser
 - [x] if logs are cleared, only fetch logs for that container from that timestamp
+- [x] Light mode
 - [ ] The ALT modifier key on Mac is not working
 - [ ] Auto-scroll logs to the latest entry
 - [ ] cleanup

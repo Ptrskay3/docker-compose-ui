@@ -9,7 +9,10 @@ use crate::{
     utils::shorten_path,
 };
 
+use super::get_bg_color;
+
 pub fn create_legend(app: &App) -> Paragraph<'_> {
+    let bg = get_bg_color();
     let content = Line::from(vec![
         Span::raw("Project name: "),
         Span::styled(
@@ -40,11 +43,12 @@ pub fn create_legend(app: &App) -> Paragraph<'_> {
         Block::default()
             .borders(Borders::ALL)
             .title("General")
-            .style(Style::default().fg(Color::LightBlue).bg(Color::Black)),
+            .style(Style::default().fg(Color::LightBlue).bg(bg)),
     )
 }
 
 pub fn create_docker_modifiers(modifiers: DockerModifier) -> Paragraph<'static> {
+    let bg = get_bg_color();
     let style_on = Style::default()
         .add_modifier(Modifier::BOLD)
         .fg(Color::Green);
@@ -122,11 +126,12 @@ pub fn create_docker_modifiers(modifiers: DockerModifier) -> Paragraph<'static> 
         Block::default()
             .title("Docker Modifiers")
             .borders(Borders::ALL)
-            .style(Style::default().fg(Color::LightBlue).bg(Color::Black)),
+            .style(Style::default().fg(Color::LightBlue).bg(bg)),
     )
 }
 
 pub fn create_container_info(app: &mut App) -> impl Widget + '_ {
+    let bg = get_bg_color();
     // A bit ugly to duplicate, but it's only 2 blocks..
     let Some(selected) = app.compose_content.state.selected() else {
         return Paragraph::new(Line::styled(
@@ -137,7 +142,7 @@ pub fn create_container_info(app: &mut App) -> impl Widget + '_ {
             Block::default()
                 .title("Container info")
                 .borders(Borders::ALL)
-                .style(Style::default().fg(Color::LightBlue).bg(Color::Black)),
+                .style(Style::default().fg(Color::LightBlue).bg(bg)),
         );
     };
     let Some(Some(container_info)) = app.container_info.get(&selected) else {
@@ -149,7 +154,7 @@ pub fn create_container_info(app: &mut App) -> impl Widget + '_ {
             Block::default()
                 .title("Container info")
                 .borders(Borders::ALL)
-                .style(Style::default().fg(Color::LightBlue).bg(Color::Black)),
+                .style(Style::default().fg(Color::LightBlue).bg(bg)),
         );
     };
     let value_style = Style::default().fg(Color::LightYellow);
@@ -189,6 +194,6 @@ pub fn create_container_info(app: &mut App) -> impl Widget + '_ {
         Block::default()
             .title("Container info")
             .borders(Borders::ALL)
-            .style(Style::default().fg(Color::LightBlue).bg(Color::Black)),
+            .style(Style::default().fg(Color::LightBlue).bg(bg)),
     )
 }

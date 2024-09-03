@@ -12,11 +12,13 @@ use ratatui::{
 use crate::app::App;
 
 use super::{
+    get_bg_color,
     legend::{create_container_info, create_docker_modifiers, create_legend},
     popup::Popup,
 };
 
 pub fn render_main_screen(app: &mut App, frame: &mut Frame) {
+    let bg = get_bg_color();
     let size = frame.area();
     let main_and_legend = Layout::default()
         .direction(Direction::Vertical)
@@ -67,7 +69,7 @@ pub fn render_main_screen(app: &mut App, frame: &mut Frame) {
                 Block::bordered()
                     .title("Logs")
                     .border_type(BorderType::Rounded)
-                    .style(Style::default().fg(Color::LightBlue).bg(Color::Black)),
+                    .style(Style::default().fg(Color::LightBlue).bg(bg)),
             )
             .scroll((app.vertical_scroll as _, 0)),
         logs_and_info[0],
@@ -110,7 +112,7 @@ pub fn render_main_screen(app: &mut App, frame: &mut Frame) {
             Block::bordered()
                 .title("Docker Compose TUI")
                 .border_type(BorderType::Rounded)
-                .style(Style::default().fg(Color::LightBlue).bg(Color::Black)),
+                .style(Style::default().fg(Color::LightBlue).bg(bg)),
         );
 
     frame.render_stateful_widget(list, main_and_logs[0], &mut app.compose_content.state);
@@ -159,9 +161,9 @@ pub fn render_main_screen(app: &mut App, frame: &mut Frame) {
 
         let popup = Popup::default()
             .content(wrapped)
-            .style(Style::new().light_blue().bg(Color::Black))
+            .style(Style::new().light_blue().bg(bg))
             .title("Error")
-            .title_style(Style::new().black().bold())
+            .title_style(Style::new().white().bold())
             .border_style(Style::new().red());
 
         frame.render_stateful_widget(popup, popup_area, &mut app.popup_scroll);

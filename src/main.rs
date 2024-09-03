@@ -9,6 +9,7 @@ use dcr::tui::Tui;
 use dcr::{LIGHT_MODE, MAX_PATH_CHARS};
 use docker_compose_types::Compose;
 use indexmap::IndexMap;
+use miette::LabeledSpan;
 use ratatui::backend::CrosstermBackend;
 use ratatui::Terminal;
 use std::collections::HashMap;
@@ -32,6 +33,14 @@ struct Args {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    miette::set_hook(Box::new(|_| {
+        Box::new(
+            miette::MietteHandlerOpts::new()
+                .context_lines(3)
+                .terminal_links(true)
+                .build(),
+        )
+    }))?;
     #[cfg(unix)]
     let docker =
         Docker::connect_with_socket_defaults().context("Failed to connect to Docker daemon")?;
@@ -62,18 +71,29 @@ async fn main() -> anyhow::Result<()> {
     } = Args::parse();
     MAX_PATH_CHARS.set(max_path_len).unwrap();
     LIGHT_MODE.set(light).unwrap();
+    let full_path = Path::new(&file).canonicalize()?;
+
     let file_payload =
         std::fs::read_to_string(&file).with_context(|| format!("file '{file}' not found"))?;
     let deserializer = serde_yaml::Deserializer::from_str(&file_payload);
     let compose_content = match serde_path_to_error::deserialize::<'_, _, Compose>(deserializer) {
         Ok(c) => c,
         Err(e) => {
-            anyhow::bail!("Failed to deserialize: {}", e);
+            let inner = e.into_inner();
+            let Some(location) = inner.location() else {
+                anyhow::bail!("Failed to deserialize compose file.")
+            };
+            let report = miette::miette!(
+                labels = vec![LabeledSpan::at(location.index(), inner.to_string())],
+                "Failed to deserialize compose file at {}",
+                full_path.display()
+            )
+            .with_source_code(file_payload);
+            anyhow::bail!("{report:?}");
         }
     };
 
     // Try to load the .env from the same directory as the docker-compose file.
-    let full_path = Path::new(&file).canonicalize()?;
     let dotenv_file = full_path.parent().expect("a directory").join(".env");
     dotenvy::from_path(dotenv_file).ok();
 

@@ -58,15 +58,18 @@ async fn main() -> anyhow::Result<()> {
     let Args {
         compose_file: file,
         max_path_len,
-        light
+        light,
     } = Args::parse();
     MAX_PATH_CHARS.set(max_path_len).unwrap();
     LIGHT_MODE.set(light).unwrap();
     let file_payload =
         std::fs::read_to_string(&file).with_context(|| format!("file '{file}' not found"))?;
-    let compose_content = match serde_yaml::from_str::<Compose>(&file_payload) {
+    let deserializer = serde_yaml::Deserializer::from_str(&file_payload);
+    let compose_content = match serde_path_to_error::deserialize::<'_, _, Compose>(deserializer) {
         Ok(c) => c,
-        Err(e) => anyhow::bail!("Failed to parse docker-compose file: {}", e),
+        Err(e) => {
+            anyhow::bail!("Failed to deserialize: {}", e);
+        }
     };
 
     // Try to load the .env from the same directory as the docker-compose file.

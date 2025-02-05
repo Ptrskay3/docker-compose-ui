@@ -28,7 +28,7 @@ struct Args {
 
     /// Enable light mode.
     #[arg(env = "DCR_LIGHT_MODE", long)]
-    light: bool,
+    light: Option<bool>,
 }
 
 #[tokio::main]
@@ -63,6 +63,7 @@ async fn main() -> anyhow::Result<()> {
         .flatten()
         .map(|name| name.trim_start_matches('/').into())
         .collect::<Vec<String>>();
+    let should_use_light_skin = terminal_light::luma().map_or(false, |luma| luma > 0.6);
 
     let Args {
         compose_file: file,
@@ -70,7 +71,9 @@ async fn main() -> anyhow::Result<()> {
         light,
     } = Args::parse();
     MAX_PATH_CHARS.set(max_path_len).unwrap();
-    LIGHT_MODE.set(light).unwrap();
+    LIGHT_MODE
+        .set(light.unwrap_or(should_use_light_skin))
+        .unwrap();
     let full_path = Path::new(&file).canonicalize()?;
 
     let file_payload =

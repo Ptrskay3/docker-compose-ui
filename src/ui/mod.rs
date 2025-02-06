@@ -15,7 +15,7 @@ const ALL_INTERFACES: &str = "0.0.0.0";
 const MIN_ROWS: u16 = 20;
 const MIN_COLS: u16 = 130;
 
-const BG_LIGHT: Color = Color::White;
+const BG_LIGHT: Color = Color::Rgb(255, 255, 255);
 const BG_DARK: Color = Color::Black;
 
 pub fn render(app: &mut App, frame: &mut Frame) {
